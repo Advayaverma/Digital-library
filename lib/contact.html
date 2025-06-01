@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Digital Library</title>
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Fixed Navigation Bar -->
+    <div id="nav" class="fixed-nav">
+        <div id="nav-part1">
+            <h1>Digital Library</h1>
+        </div>
+        <div id="nav-part2">
+            <div id="links">
+                <a href="index.html">Home</a>
+                <a href="login.html">Login</a>
+                <a href="signup.html">Sign Up</a>
+                <a href="about.html">About</a>
+                <a href="contact.html" class="active">Contact</a>
+            </div>
+            <div id="icons">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Section -->
+    <section class="contact-container">
+        <div class="contact-content">
+            <h2>Contact Us</h2>
+            <p>Have questions? Feel free to reach out to us through the following contact details.</p>
+            
+            <div class="contact-details">
+                <p><i class="fas fa-envelope"></i> Email: support@digitallibrary.com</p>
+                <p><i class="fas fa-phone"></i> Phone: +1 (123) 456-7890</p>
+                <p><i class="fas fa-map-marker-alt"></i> Address: 123 Library Street, Knowledge City, 56789</p>
+            </div>
+
+            <h3>Follow Us</h3>
+            <div class="social-links">
+                <a href="#"><i class="fab fa-facebook"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-linkedin"></i></a>
+            </div>
+
+            <!-- Contact Form -->
+            <h3>Send Us a Message</h3>
+            <form id="contactForm">
+                <input type="text" id="name" placeholder="Your Name" required>
+                <input type="email" id="email" placeholder="Your Email" required>
+                <textarea id="message" placeholder="Your Message" required></textarea>
+                <button type="submit">Send Message</button>
+            </form>
+
+            <p id="formMessage" class="form-message"></p>
+        </div>
+    </section>
+
+    <script src="scripts/nav.js"></script>
+    <script src="scripts/contact.js"></script>
+</body>
+</html>

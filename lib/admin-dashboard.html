@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Library</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <style>
+        body {
+            background: url('../public/pexels-repuding-12064.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: #fff;
+        }
+        .container {
+            margin-top: 50px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .form-control, .btn {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Admin Dashboard</h2>
+        <button class="btn btn-danger float-right" onclick="logout()">Logout</button>
+        <hr>
+
+        <form id="libraryForm">
+            <input type="hidden" id="bookId">
+            <input type="text" class="form-control" id="bookName" placeholder="Book Name" required>
+            <input type="text" class="form-control" id="author" placeholder="Author" required>
+            <input type="text" class="form-control" id="genre" placeholder="Genres (comma separated)" required>
+            <button type="submit" class="btn btn-success btn-block">Add Book</button>
+        </form>
+
+        <input class="form-control mb-3" id="searchTxt" type="search" placeholder="Search Books by Name, Author, or Genre" onkeyup="searchBook()">
+
+        <h3>Available Books</h3>
+        <table class="table table-dark mt-3">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Author</th>
+                    <th>Genres</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="adminTableBody"></tbody>
+        </table>
+
+        <h3>Borrowed Books</h3>
+        <table class="table table-dark mt-3">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Book Name</th>
+                    <th>Author</th>
+                    <th>Genre</th>
+                    <th>Due Date</th>
+                </tr>
+            </thead>
+            <tbody id="borrowedBooksTable"></tbody>
+        </table>
+
+        <h3>Returned Books</h3>
+        <table class="table table-dark mt-3">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Book Name</th>
+                    <th>Author</th>
+                    <th>Due Date</th>
+                    <th>Return Date</th>
+                </tr>
+            </thead>
+            <tbody id="returnedBooksTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        function Book(id, name, author, genre) {
+            this.id = id || Date.now();
+            this.name = name;
+            this.author = author;
+            this.genre = genre;
+        }
+
+        function displayAdminBooks() {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let tableBody = document.getElementById('adminTableBody');
+            tableBody.innerHTML = books.map(book => `<tr>
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.genre}</td>
+                    <td>
+                        <button class='btn btn-warning btn-sm' onclick="editBook(${book.id})">Edit</button>
+                        <button class='btn btn-danger btn-sm' onclick="removeBook(${book.id})">Remove</button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        function displayBorrowedBooks() {
+            let borrowedBooks = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+            let borrowedTable = document.getElementById('borrowedBooksTable');
+            borrowedTable.innerHTML = borrowedBooks.length 
+                ? borrowedBooks.map(book => `<tr>
+                    <td>${book.user}</td> <!-- User's Name -->
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.genre}</td>
+                    <td>${book.dueDate}</td>
+                </tr>`).join('')
+                : "<tr><td colspan='5' class='text-center'>No borrowed books</td></tr>";
+        }
+
+        function displayReturnedBooks() {
+            let returnedBooks = JSON.parse(localStorage.getItem("returnedBooks")) || [];
+            let returnedTable = document.getElementById('returnedBooksTable');
+            returnedTable.innerHTML = returnedBooks.length 
+                ? returnedBooks.map(book => `<tr>
+                    <td>${book.user}</td> <!-- User's Name -->
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.dueDate}</td>
+                    <td>${book.returnDate}</td>
+                </tr>`).join('')
+                : "<tr><td colspan='5' class='text-center'>No returned books</td></tr>";
+        }
+
+        document.getElementById('libraryForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            let id = document.getElementById('bookId').value;
+            let name = document.getElementById('bookName').value;
+            let author = document.getElementById('author').value;
+            let genre = document.getElementById('genre').value;
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+
+            if (id) {
+                let bookIndex = books.findIndex(book => book.id == id);
+                books[bookIndex] = new Book(id, name, author, genre);
+            } else {
+                books.push(new Book(null, name, author, genre));
+            }
+            
+            localStorage.setItem("books", JSON.stringify(books));
+            displayAdminBooks();
+            document.getElementById('libraryForm').reset();
+            document.getElementById('bookId').value = "";
+        });
+
+        function removeBook(id) {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            books = books.filter(book => book.id != id);
+            localStorage.setItem("books", JSON.stringify(books));
+            displayAdminBooks();
+        }
+
+        function editBook(id) {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let book = books.find(b => b.id == id);
+            if (book) {
+                document.getElementById('bookId').value = book.id;
+                document.getElementById('bookName').value = book.name;
+                document.getElementById('author').value = book.author;
+                document.getElementById('genre').value = book.genre;
+            }
+        }
+
+        function searchBook() {
+            let searchText = document.getElementById('searchTxt').value.toLowerCase();
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let filteredBooks = books.filter(book => 
+                book.name.toLowerCase().includes(searchText) || 
+                book.author.toLowerCase().includes(searchText) ||
+                book.genre.toLowerCase().includes(searchText)
+            );
+            let tableBody = document.getElementById('adminTableBody');
+            tableBody.innerHTML = filteredBooks.map(book => `<tr>
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.genre}</td>
+                    <td>
+                        <button class='btn btn-warning btn-sm' onclick="editBook(${book.id})">Edit</button>
+                        <button class='btn btn-danger btn-sm' onclick="removeBook(${book.id})">Remove</button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        function logout() {
+            window.location.href = "login.html";
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            displayAdminBooks();
+            displayBorrowedBooks();
+            displayReturnedBooks();
+        });
+    </script>
+</body>
+</html>

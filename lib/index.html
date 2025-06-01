@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Library</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/locomotive-scroll@3.5.4/dist/locomotive-scroll.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+    <div id="nav">
+        <div id="nav-part1">
+            <h1>Digital Library</h1>
+        </div>
+        <div id="nav-part2">
+            <div id="links">
+                <a href="index.html" class="active">Home</a>
+                <a href="login.html">Login</a>
+                <a href="signup.html">Sign Up</a>
+                <a href="about.html">About</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div id="icons">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </div>
+
+    <div id="cursor"></div>
+
+    <div id="main">
+        <div id="page1">
+            <h1>Welcome to the</h1>
+            <h1>Digital Library</h1>
+            <div id="video-container">
+                <div id="play">EXPLORE</div>
+                <video autoplay loop muted src="https://www.youtube.com/watch?v=1Kwdxd4RPWw"></video>
+            </div>
+        </div>
+
+        <div id="page2">
+            <div id="elem1" class="elem">
+                <img data-scroll data-scroll-speed="1" src="https://bukovero.com/wp-content/uploads/2016/07/Harry_Potter_and_the_Cursed_Child_Special_Rehearsal_Edition_Book_Cover.jpg" alt="Book 1">
+                <div data-scroll data-scroll-speed="-2" class="dets">
+                    
+                </div>
+            </div>
+            <div id="elem2" class="elem">
+                <img data-scroll data-scroll-speed="1" src="https://images-platform.99static.com//SHOjRzTSbSa4mROeP_ok415_-Ok=/348x82:1219x953/fit-in/500x500/99designs-contests-attachments/124/124375/attachment_124375905" alt="Book 2">
+                <div data-scroll data-scroll-speed="-2" class="dets">
+                    
+                </div>
+            </div>
+            <div id="elem3" class="elem">
+                <img data-scroll data-scroll-speed="1" src="https://m.media-amazon.com/images/I/71QUPsi6NaL.jpg" alt="Book 3">
+                <div data-scroll data-scroll-speed="-2" class="dets">
+                    
+                </div>
+            </div>
+        </div>
+
+        
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/locomotive-scroll@3.5.4/dist/locomotive-scroll.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Digital Library</title>
+    <link rel="stylesheet" href="styles/auth.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <!-- <div id="nav">
+        <div id="nav-part1">
+            <h1>Digital Library</h1>
+        </div>
+        <div id="nav-part2">
+            <div id="links">
+                <a href="index.html">Home</a>
+                <a href="login.html" class="active">Login</a>
+                <a href="signup.html">Sign Up</a>
+                <a href="about.html">About</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div id="icons">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </div> -->
+    <div id="nav" class="fixed-nav">
+        <div id="nav-part1">
+            <h1>Digital Library</h1>
+        </div>
+        <div id="nav-part2">
+            <div id="links">
+                <a href="index.html">Home</a>
+                <a href="login.html" class="active">Login</a>
+                <a href="signup.html">Sign Up</a>
+                <a href="about.html">About</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            <div id="icons">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Section -->
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h2>Welcome Back!</h2>
+                <p>Select an option to login.</p>
+            </div>
+
+            <!-- Login Type Selection Tabs -->
+            <div class="login-tabs">
+                <button class="tab-btn active" onclick="showLogin('user')">Login as User</button>
+                <button class="tab-btn" onclick="showLogin('admin')">Login as Admin</button>
+            </div>
+
+            <!-- User Login Form -->
+            <form id="userLoginForm" class="login-form">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="userUsername" placeholder="Enter username" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="userPassword" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="btn-user">Login as User</button>
+            </form>
+
+            <!-- Admin Login Form (Initially Hidden) -->
+            <form id="adminLoginForm" class="login-form hidden">
+                <div class="input-group">
+                    <i class="fas fa-user-shield"></i>
+                    <input type="text" id="adminUsername" placeholder="Enter admin username" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="adminPassword" placeholder="Enter admin password" required>
+                </div>
+                <button type="submit" class="btn-admin">Login as Admin</button>
+            </form>
+
+            <p id="errorMessage" class="error"></p>
+
+            <!-- Functional Sign Up Button -->
+            <div class="login-footer">
+                <p>Don't have an account? <a href="signup.html" id="signupLink">Sign Up</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle between User and Admin Login
+        function showLogin(type) {
+            document.querySelectorAll('.login-form').forEach(form => form.classList.add('hidden'));
+            document.getElementById(type + "LoginForm").classList.remove('hidden');
+
+            // Highlight active tab
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="showLogin('${type}')"]`).classList.add('active');
+        }
+
+        // User Login Function
+        document.getElementById("userLoginForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            let username = document.getElementById("userUsername").value;
+            let password = document.getElementById("userPassword").value;
+
+            let users = JSON.parse(localStorage.getItem("users")) || [{ username: "user123", password: "userpass" }];
+            let user = users.find(user => user.username === username && user.password === password);
+
+            if (user) {
+                alert("User login successful!");
+                window.location.href = "user-dashboard.html"; 
+            } else {
+                document.getElementById("errorMessage").textContent = "Invalid User credentials!";
+            }
+        });
+
+        // Admin Login Function
+        document.getElementById("adminLoginForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            let username = document.getElementById("adminUsername").value;
+            let password = document.getElementById("adminPassword").value;
+
+            let admins = JSON.parse(localStorage.getItem("admins")) || [{ username: "admin123", password: "adminpass" }];
+            let admin = admins.find(admin => admin.username === username && admin.password === password);
+
+            if (admin) {
+                alert("Admin login successful!");
+                window.location.href = "admin-dashboard.html"; 
+            } else {
+                document.getElementById("errorMessage").textContent = "Invalid Admin credentials!";
+            }
+        });
+
+        // Redirect to Sign Up Page
+        document.getElementById("signupLink").addEventListener("click", function(event) {
+            event.preventDefault();
+            window.location.href = "signup.html";
+        });
+    </script>
+
+</body>
+</html>

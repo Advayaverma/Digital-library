@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - Library</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <style>
+        body {
+            background: url('../public/pexels-repuding-12064.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: #fff;
+        }
+        .container {
+            margin-top: 50px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .form-control, .btn {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">User Dashboard</h2>
+        <button class="btn btn-danger float-right" onclick="logout()">Logout</button>
+        <hr>
+
+        <!-- Search Books -->
+        <input class="form-control mb-3" id="searchTxt" type="search" placeholder="Search Books by Name, Author, or Genre" onkeyup="searchBook()">
+
+        <!-- Available Books -->
+        <h3>Available Books</h3>
+        <table class="table table-dark mt-3">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Author</th>
+                    <th>Genre</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+        <!-- Borrowed Books -->
+        <h3>Borrowed Books</h3>
+        <table class="table table-dark mt-3">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Author</th>
+                    <th>Genre</th>
+                    <th>Due Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="borrowedBody"></tbody>
+        </table>
+
+        <!-- Returned Books -->
+        <h3>Returned Books</h3>
+        <table class="table table-dark mt-3">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Author</th>
+                    <th>Due Date</th>
+                    <th>Return Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="returnedBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        function displayBooks(filteredBooks = null) {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let borrowedBooks = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+            let returnedBooks = JSON.parse(localStorage.getItem("returnedBooks")) || [];
+
+            let tableBody = document.getElementById('tableBody');
+            let borrowedBody = document.getElementById('borrowedBody');
+            let returnedBody = document.getElementById('returnedBody');
+
+            let availableBooks = books.filter(book => 
+                !borrowedBooks.some(borrowed => borrowed.name === book.name)
+            );
+
+            // Use filtered books if searching
+            if (filteredBooks !== null) {
+                availableBooks = filteredBooks;
+            }
+
+            tableBody.innerHTML = availableBooks.length ? 
+                availableBooks.map((book, index) => `<tr>
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.genre}</td>
+                    <td><button class="btn btn-success" onclick="borrowBook(${index})">Borrow</button></td>
+                </tr>`).join('') : "<tr><td colspan='4' class='text-center'>No books available</td></tr>";
+
+            borrowedBody.innerHTML = borrowedBooks.length ? 
+                borrowedBooks.map((book, index) => `<tr>
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.genre}</td>
+                    <td>${book.dueDate}</td>
+                    <td><button class="btn btn-warning" onclick="returnBook(${index})">Return</button></td>
+                </tr>`).join('') : "<tr><td colspan='5' class='text-center'>No borrowed books</td></tr>";
+
+            returnedBody.innerHTML = returnedBooks.length ? 
+                returnedBooks.map((book, index) => `<tr>
+                    <td>${book.name}</td>
+                    <td>${book.author}</td>
+                    <td>${book.dueDate}</td>
+                    <td>${book.returnDate}</td>
+                    <td><button class="btn btn-danger" onclick="deleteReturnedBook(${index})">Delete</button></td>
+                </tr>`).join('') : "<tr><td colspan='5' class='text-center'>No returned books</td></tr>";
+        }
+
+        function searchBook() {
+            let searchText = document.getElementById('searchTxt').value.toLowerCase();
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+
+            let filteredBooks = books.filter(book => 
+                book.name.toLowerCase().includes(searchText) || 
+                book.author.toLowerCase().includes(searchText) ||
+                book.genre.toLowerCase().includes(searchText) // Added genre search
+            );
+
+            displayBooks(filteredBooks);
+        }
+
+        function borrowBook(index) {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            let borrowedBooks = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+
+            let availableBooks = books.filter(book => 
+                !borrowedBooks.some(borrowed => borrowed.name === book.name)
+            );
+
+            let book = availableBooks[index];
+
+            let days = parseInt(prompt("Enter the number of days you want to borrow the book:"));
+            if (!days || days <= 0) {
+                alert("Invalid number of days. Please enter a positive number.");
+                return;
+            }
+
+            let today = new Date();
+            let dueDate = new Date(today);
+            dueDate.setDate(today.getDate() + days);
+
+            book.dueDate = dueDate.toISOString().split('T')[0];
+
+            borrowedBooks.push(book);
+            localStorage.setItem("borrowedBooks", JSON.stringify(borrowedBooks));
+
+            displayBooks();
+        }
+
+        function returnBook(index) {
+            let borrowedBooks = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
+            let returnedBooks = JSON.parse(localStorage.getItem("returnedBooks")) || [];
+
+            let book = borrowedBooks[index];
+
+            let today = new Date();
+            let returnDate = today.toISOString().split('T')[0]; // Capture today's date as return date
+
+            let dueDate = new Date(book.dueDate);
+            let delayDays = Math.max(0, Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24))); // Calculate delay
+
+            book.returnDate = returnDate;
+
+            returnedBooks.push(book);
+            borrowedBooks.splice(index, 1);
+
+            localStorage.setItem("borrowedBooks", JSON.stringify(borrowedBooks));
+            localStorage.setItem("returnedBooks", JSON.stringify(returnedBooks));
+
+            alert(`Book: ${book.name} \nReturned on: ${returnDate} \nDue Date was: ${book.dueDate} \n${delayDays > 0 ? "⚠ Delayed by " + delayDays + " days!" : "✅ Returned on time!"}`);
+
+            displayBooks();
+        }
+
+        function deleteReturnedBook(index) {
+            let returnedBooks = JSON.parse(localStorage.getItem("returnedBooks")) || [];
+            returnedBooks.splice(index, 1);
+            localStorage.setItem("returnedBooks", JSON.stringify(returnedBooks));
+            displayBooks();
+        }
+
+        function logout() {
+            window.location.href = "login.html";
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            displayBooks();
+        });
+    </script>
+</body>
+</html>
