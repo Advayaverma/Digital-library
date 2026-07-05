@@ -39,7 +39,13 @@
 
         <input class="form-control mb-3" id="searchTxt" type="search" placeholder="Search Books by Name, Author, or Genre" onkeyup="searchBook()">
 
-        <h3>Available Books</h3>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">Available Books</h3>
+            <div>
+                <button class="btn btn-outline-warning btn-sm mr-2" onclick="restoreCSV()">Load CSV Books</button>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteAllBooks()">Delete All Books</button>
+            </div>
+        </div>
         <table class="table table-dark mt-3">
             <thead>
                 <tr>
@@ -194,9 +200,39 @@
             window.location.href = "login.html";
         }
 
+        function deleteAllBooks() {
+            if (confirm("Are you sure you want to delete all books? This will also clear active borrowed/returned states mapping to these books.")) {
+                localStorage.setItem("books", JSON.stringify([]));
+                localStorage.setItem("csvLoaded", "true"); // Prevent auto-reload of CSV
+                displayAdminBooks();
+            }
+        }
+
+        async function restoreCSV() {
+            if (confirm("Are you sure you want to load books from CSV? This will overwrite your current book list.")) {
+                localStorage.removeItem("books");
+                localStorage.removeItem("csvLoaded");
+                let tableBody = document.getElementById('adminTableBody');
+                if (tableBody) {
+                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center">
+                        <div class="spinner-border text-light" role="status" style="width: 1.5rem; height: 1.5rem;">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <span class="ml-2">Loading random books from CSV...</span>
+                    </td></tr>`;
+                }
+                await loadBooksFromCSV();
+                displayAdminBooks();
+            }
+        }
+
         async function loadBooksFromCSV() {
+            if (localStorage.getItem("csvLoaded") === "true") return;
             let books = JSON.parse(localStorage.getItem("books")) || [];
-            if (books.length > 0) return;
+            if (books.length > 0) {
+                localStorage.setItem("csvLoaded", "true");
+                return;
+            }
 
             let tableBody = document.getElementById('adminTableBody');
             if (tableBody) {
@@ -274,6 +310,7 @@
 
                 if (parsedBooks.length > 0) {
                     localStorage.setItem("books", JSON.stringify(parsedBooks));
+                    localStorage.setItem("csvLoaded", "true");
                 } else {
                     throw new Error("No books parsed.");
                 }
@@ -287,6 +324,7 @@
                     { id: "0374157065", name: "Flu: Great Influenza Pandemic of 1918", author: "Gina Bari Kolata", genre: "Science" }
                 ];
                 localStorage.setItem("books", JSON.stringify(fallbackBooks));
+                localStorage.setItem("csvLoaded", "true");
             }
         }
 

@@ -207,8 +207,12 @@
         }
 
         async function loadBooksFromCSV() {
+            if (localStorage.getItem("csvLoaded") === "true") return;
             let books = JSON.parse(localStorage.getItem("books")) || [];
-            if (books.length > 0) return;
+            if (books.length > 0) {
+                localStorage.setItem("csvLoaded", "true");
+                return;
+            }
 
             let tableBody = document.getElementById('tableBody');
             if (tableBody) {
@@ -285,6 +289,7 @@
 
                 if (parsedBooks.length > 0) {
                     localStorage.setItem("books", JSON.stringify(parsedBooks));
+                    localStorage.setItem("csvLoaded", "true");
                 } else {
                     throw new Error("No books parsed.");
                 }
@@ -298,6 +303,7 @@
                     { id: "0374157065", name: "Flu: Great Influenza Pandemic of 1918", author: "Gina Bari Kolata", genre: "Science" }
                 ];
                 localStorage.setItem("books", JSON.stringify(fallbackBooks));
+                localStorage.setItem("csvLoaded", "true");
             }
         }
 
