@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,17 +13,21 @@
             background-size: cover;
             color: #fff;
         }
+
         .container {
             margin-top: 50px;
             background: rgba(0, 0, 0, 0.7);
             padding: 30px;
             border-radius: 10px;
         }
-        .form-control, .btn {
+
+        .form-control,
+        .btn {
             margin-bottom: 10px;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h2 class="text-center">User Dashboard</h2>
@@ -30,7 +35,8 @@
         <hr>
 
         <!-- Search Books -->
-        <input class="form-control mb-3" id="searchTxt" type="search" placeholder="Search Books by Name, Author, or Genre" onkeyup="searchBook()">
+        <input class="form-control mb-3" id="searchTxt" type="search"
+            placeholder="Search Books by Name, Author, or Genre" onkeyup="searchBook()">
 
         <!-- Available Books -->
         <h3>Available Books</h3>
@@ -87,7 +93,7 @@
             let borrowedBody = document.getElementById('borrowedBody');
             let returnedBody = document.getElementById('returnedBody');
 
-            let availableBooks = books.filter(book => 
+            let availableBooks = books.filter(book =>
                 !borrowedBooks.some(borrowed => borrowed.name === book.name)
             );
 
@@ -96,7 +102,7 @@
                 availableBooks = filteredBooks;
             }
 
-            tableBody.innerHTML = availableBooks.length ? 
+            tableBody.innerHTML = availableBooks.length ?
                 availableBooks.map((book, index) => `<tr>
                     <td>${book.name}</td>
                     <td>${book.author}</td>
@@ -104,7 +110,7 @@
                     <td><button class="btn btn-success" onclick="borrowBook(${index})">Borrow</button></td>
                 </tr>`).join('') : "<tr><td colspan='4' class='text-center'>No books available</td></tr>";
 
-            borrowedBody.innerHTML = borrowedBooks.length ? 
+            borrowedBody.innerHTML = borrowedBooks.length ?
                 borrowedBooks.map((book, index) => `<tr>
                     <td>${book.name}</td>
                     <td>${book.author}</td>
@@ -113,7 +119,7 @@
                     <td><button class="btn btn-warning" onclick="returnBook(${index})">Return</button></td>
                 </tr>`).join('') : "<tr><td colspan='5' class='text-center'>No borrowed books</td></tr>";
 
-            returnedBody.innerHTML = returnedBooks.length ? 
+            returnedBody.innerHTML = returnedBooks.length ?
                 returnedBooks.map((book, index) => `<tr>
                     <td>${book.name}</td>
                     <td>${book.author}</td>
@@ -127,8 +133,8 @@
             let searchText = document.getElementById('searchTxt').value.toLowerCase();
             let books = JSON.parse(localStorage.getItem("books")) || [];
 
-            let filteredBooks = books.filter(book => 
-                book.name.toLowerCase().includes(searchText) || 
+            let filteredBooks = books.filter(book =>
+                book.name.toLowerCase().includes(searchText) ||
                 book.author.toLowerCase().includes(searchText) ||
                 book.genre.toLowerCase().includes(searchText) // Added genre search
             );
@@ -140,7 +146,7 @@
             let books = JSON.parse(localStorage.getItem("books")) || [];
             let borrowedBooks = JSON.parse(localStorage.getItem("borrowedBooks")) || [];
 
-            let availableBooks = books.filter(book => 
+            let availableBooks = books.filter(book =>
                 !borrowedBooks.some(borrowed => borrowed.name === book.name)
             );
 
@@ -200,9 +206,106 @@
             window.location.href = "login.html";
         }
 
-        document.addEventListener("DOMContentLoaded", function () {
+        async function loadBooksFromCSV() {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            if (books.length > 0) return;
+
+            let tableBody = document.getElementById('tableBody');
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center">
+                    <div class="spinner-border text-light" role="status" style="width: 1.5rem; height: 1.5rem;">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <span class="ml-2">Preloading random books from CSV...</span>
+                </td></tr>`;
+            }
+
+            try {
+                const fileSize = 77800000;
+                const chunkSize = 500 * 1024; // 500 KB
+                const maxStart = fileSize - chunkSize - 2000;
+                const startByte = Math.max(0, Math.floor(Math.random() * maxStart));
+                const endByte = startByte + chunkSize;
+
+                const response = await fetch('../public/books.csv', {
+                    headers: {
+                        'Range': `bytes=${startByte}-${endByte}`
+                    }
+                });
+
+                let text = '';
+                if (response.status === 206) {
+                    text = await response.text();
+                } else {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let bytesRead = 0;
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        text += decoder.decode(value, { stream: true });
+                        bytesRead += value.length;
+                        if (bytesRead >= chunkSize) {
+                            reader.cancel();
+                            break;
+                        }
+                    }
+                }
+
+                const lines = text.split('\n');
+                const startIdx = (response.status === 206 && startByte > 0) ? 1 : 1;
+
+                const parsedBooks = [];
+                const genres = ["Fiction", "Mystery", "Sci-Fi", "Biography", "History", "Fantasy", "Romance", "Thriller"];
+
+                for (let i = startIdx; i < lines.length - 1; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const parts = line.split('";"');
+                    if (parts.length < 3) continue;
+
+                    const isbn = parts[0].replace(/^"/, '').trim();
+                    const title = parts[1].trim();
+                    const author = parts[2].trim();
+
+                    let hash = 0;
+                    for (let j = 0; j < isbn.length; j++) {
+                        hash = isbn.charCodeAt(j) + ((hash << 5) - hash);
+                    }
+                    const genre = genres[Math.abs(hash) % genres.length];
+
+                    parsedBooks.push({
+                        id: isbn || (Date.now() + i),
+                        name: title,
+                        author: author,
+                        genre: genre
+                    });
+                }
+
+                if (parsedBooks.length > 0) {
+                    localStorage.setItem("books", JSON.stringify(parsedBooks));
+                } else {
+                    throw new Error("No books parsed.");
+                }
+
+            } catch (error) {
+                console.error("Error preloading books:", error);
+                const fallbackBooks = [
+                    { id: "0195153448", name: "Classical Mythology", author: "Mark P. O. Morford", genre: "Mythology" },
+                    { id: "0002005018", name: "Clara Callan", author: "Richard Bruce Wright", genre: "Fiction" },
+                    { id: "0060973129", name: "Decision in Normandy", author: "Carlo D'Este", genre: "History" },
+                    { id: "0374157065", name: "Flu: Great Influenza Pandemic of 1918", author: "Gina Bari Kolata", genre: "Science" }
+                ];
+                localStorage.setItem("books", JSON.stringify(fallbackBooks));
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            await loadBooksFromCSV();
             displayBooks();
         });
     </script>
 </body>
+
 </html>

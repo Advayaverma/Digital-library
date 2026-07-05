@@ -194,7 +194,104 @@
             window.location.href = "login.html";
         }
 
-        document.addEventListener("DOMContentLoaded", function () {
+        async function loadBooksFromCSV() {
+            let books = JSON.parse(localStorage.getItem("books")) || [];
+            if (books.length > 0) return;
+
+            let tableBody = document.getElementById('adminTableBody');
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center">
+                    <div class="spinner-border text-light" role="status" style="width: 1.5rem; height: 1.5rem;">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <span class="ml-2">Preloading random books from CSV...</span>
+                </td></tr>`;
+            }
+
+            try {
+                const fileSize = 77800000; 
+                const chunkSize = 500 * 1024; // 500 KB
+                const maxStart = fileSize - chunkSize - 2000;
+                const startByte = Math.max(0, Math.floor(Math.random() * maxStart));
+                const endByte = startByte + chunkSize;
+
+                const response = await fetch('../public/books.csv', {
+                    headers: {
+                        'Range': `bytes=${startByte}-${endByte}`
+                    }
+                });
+
+                let text = '';
+                if (response.status === 206) {
+                    text = await response.text();
+                } else {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let bytesRead = 0;
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        text += decoder.decode(value, { stream: true });
+                        bytesRead += value.length;
+                        if (bytesRead >= chunkSize) {
+                            reader.cancel();
+                            break;
+                        }
+                    }
+                }
+
+                const lines = text.split('\n');
+                // Skip first partial line if we did a range request starting inside the file
+                const startIdx = (response.status === 206 && startByte > 0) ? 1 : 1;
+
+                const parsedBooks = [];
+                const genres = ["Fiction", "Mystery", "Sci-Fi", "Biography", "History", "Fantasy", "Romance", "Thriller"];
+
+                for (let i = startIdx; i < lines.length - 1; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const parts = line.split('";"');
+                    if (parts.length < 3) continue;
+
+                    const isbn = parts[0].replace(/^"/, '').trim();
+                    const title = parts[1].trim();
+                    const author = parts[2].trim();
+
+                    let hash = 0;
+                    for (let j = 0; j < isbn.length; j++) {
+                        hash = isbn.charCodeAt(j) + ((hash << 5) - hash);
+                    }
+                    const genre = genres[Math.abs(hash) % genres.length];
+
+                    parsedBooks.push({
+                        id: isbn || (Date.now() + i),
+                        name: title,
+                        author: author,
+                        genre: genre
+                    });
+                }
+
+                if (parsedBooks.length > 0) {
+                    localStorage.setItem("books", JSON.stringify(parsedBooks));
+                } else {
+                    throw new Error("No books parsed.");
+                }
+
+            } catch (error) {
+                console.error("Error preloading books:", error);
+                const fallbackBooks = [
+                    { id: "0195153448", name: "Classical Mythology", author: "Mark P. O. Morford", genre: "Mythology" },
+                    { id: "0002005018", name: "Clara Callan", author: "Richard Bruce Wright", genre: "Fiction" },
+                    { id: "0060973129", name: "Decision in Normandy", author: "Carlo D'Este", genre: "History" },
+                    { id: "0374157065", name: "Flu: Great Influenza Pandemic of 1918", author: "Gina Bari Kolata", genre: "Science" }
+                ];
+                localStorage.setItem("books", JSON.stringify(fallbackBooks));
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            await loadBooksFromCSV();
             displayAdminBooks();
             displayBorrowedBooks();
             displayReturnedBooks();
