@@ -16,10 +16,7 @@ export default function Login() {
 
   const resolveEmail = (identifier) => {
     if (identifier.includes('@')) return identifier;
-    // Check if user previously registered with a matching username in local profiles
-    const registered = JSON.parse(localStorage.getItem('users')) || [];
-    const match = registered.find((u) => u.username?.toLowerCase() === identifier.toLowerCase());
-    return match?.email || `${identifier}@digitallibrary.local`;
+    return `${identifier}@digitallibrary.local`;
   };
 
   const handleUserLogin = async (e) => {

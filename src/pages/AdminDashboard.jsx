@@ -110,7 +110,6 @@ export default function AdminDashboard() {
       try {
         await bookService.deleteAllBooks();
         setBooks([]);
-        localStorage.setItem('csvLoaded', 'true');
       } catch (err) {
         alert(`Error deleting books: ${err.message}`);
       }
