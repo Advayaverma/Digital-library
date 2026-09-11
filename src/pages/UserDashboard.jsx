@@ -3,128 +3,43 @@ import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
 import * as bookService from '../services/bookService.js';
+import * as borrowService from '../services/borrowService.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 export default function UserDashboard() {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+
   const [books, setBooks] = useState([]);
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [returnedBooks, setReturnedBooks] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [isLoadingBooks, setIsLoadingBooks] = useState(true);
 
-  // Load books via bookService on mount
-  useEffect(() => {
-    async function loadCatalog() {
-      setIsLoadingBooks(true);
-      try {
-        const catalog = await bookService.getBooks();
-        if (catalog && catalog.length > 0) {
-          setBooks(catalog);
-        } else {
-          // If neither Supabase nor localStorage has books yet, preload initial set
-          await loadBooksFromCSV();
-        }
-      } catch (err) {
-        console.error('Failed to load books catalog:', err);
-      } finally {
-        setIsLoadingBooks(false);
-      }
-    }
-
-    const storedBorrowed = JSON.parse(localStorage.getItem('borrowedBooks')) || [];
-    const storedReturned = JSON.parse(localStorage.getItem('returnedBooks')) || [];
-    setBorrowedBooks(storedBorrowed);
-    setReturnedBooks(storedReturned);
-
-    loadCatalog();
-  }, []);
-
-  const loadBooksFromCSV = async () => {
+  const loadData = async () => {
+    setIsLoadingBooks(true);
     try {
-      const fileSize = 77800000;
-      const chunkSize = 500 * 1024;
-      const maxStart = fileSize - chunkSize - 2000;
-      const startByte = Math.max(0, Math.floor(Math.random() * maxStart));
-      const endByte = startByte + chunkSize;
+      // 1. Fetch catalog
+      const catalog = await bookService.getBooks();
+      setBooks(catalog || []);
 
-      const response = await fetch('/books.csv', {
-        headers: { Range: `bytes=${startByte}-${endByte}` },
-      });
-
-      let text = '';
-      if (response.status === 206) {
-        text = await response.text();
-      } else {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let bytesRead = 0;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          text += decoder.decode(value, { stream: true });
-          bytesRead += value.length;
-          if (bytesRead >= chunkSize) {
-            reader.cancel();
-            break;
-          }
-        }
-      }
-
-      const lines = text.split('\n');
-      const startIdx = response.status === 206 && startByte > 0 ? 1 : 1;
-      const parsedBooks = [];
-      const genres = ['Fiction', 'Mystery', 'Sci-Fi', 'Biography', 'History', 'Fantasy', 'Romance', 'Thriller'];
-
-      for (let i = startIdx; i < lines.length - 1; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const parts = line.split('";"');
-        if (parts.length < 3) continue;
-
-        const isbn = parts[0].replace(/^"/, '').trim();
-        const title = parts[1].trim();
-        const author = parts[2].trim();
-
-        let hash = 0;
-        for (let j = 0; j < isbn.length; j++) {
-          hash = isbn.charCodeAt(j) + ((hash << 5) - hash);
-        }
-        const genre = genres[Math.abs(hash) % genres.length];
-
-        parsedBooks.push({
-          id: isbn || Date.now() + i,
-          name: title,
-          title: title,
-          author: author,
-          genre: genre,
-        });
-      }
-
-      if (parsedBooks.length > 0) {
-        localStorage.setItem('books', JSON.stringify(parsedBooks));
-        localStorage.setItem('csvLoaded', 'true');
-        setBooks(parsedBooks);
-      } else {
-        throw new Error('No books parsed');
-      }
-    } catch (error) {
-      console.error('Error preloading books:', error);
-      const fallbackBooks = [
-        { id: '0195153448', name: 'Classical Mythology', title: 'Classical Mythology', author: 'Mark P. O. Morford', genre: 'Mythology' },
-        { id: '0002005018', name: 'Clara Callan', title: 'Clara Callan', author: 'Richard Bruce Wright', genre: 'Fiction' },
-        { id: '0060973129', name: 'Decision in Normandy', title: 'Decision in Normandy', author: "Carlo D'Este", genre: 'History' },
-        { id: '0374157065', name: 'Flu: Great Influenza Pandemic of 1918', title: 'Flu: Great Influenza Pandemic of 1918', author: 'Gina Bari Kolata', genre: 'Science' },
-      ];
-      localStorage.setItem('books', JSON.stringify(fallbackBooks));
-      localStorage.setItem('csvLoaded', 'true');
-      setBooks(fallbackBooks);
+      // 2. Fetch user's active borrowings & history from database
+      const active = await borrowService.getActiveBorrowings(user?.id);
+      const returned = await borrowService.getReturnedBorrowings(user?.id);
+      setBorrowedBooks(active || []);
+      setReturnedBooks(returned || []);
+    } catch (err) {
+      console.error('Failed to load user dashboard data:', err);
+    } finally {
+      setIsLoadingBooks(false);
     }
   };
 
-  const handleBorrow = (book) => {
+  useEffect(() => {
+    loadData();
+  }, [user]);
+
+  const handleBorrow = async (book) => {
     const daysStr = prompt('Enter the number of days you want to borrow the book:');
     const days = parseInt(daysStr, 10);
     if (!days || days <= 0) {
@@ -132,52 +47,52 @@ export default function UserDashboard() {
       return;
     }
 
-    const today = new Date();
-    const dueDate = new Date(today);
-    dueDate.setDate(today.getDate() + days);
+    try {
+      await borrowService.borrowBook({
+        userId: user?.id,
+        bookId: book.id,
+        days,
+        bookFallback: book,
+      });
 
-    const borrowedItem = {
-      ...book,
-      dueDate: dueDate.toISOString().split('T')[0],
-      user: JSON.parse(localStorage.getItem('currentUser'))?.username || 'user123',
-    };
-
-    const updatedBorrowed = [...borrowedBooks, borrowedItem];
-    setBorrowedBooks(updatedBorrowed);
-    localStorage.setItem('borrowedBooks', JSON.stringify(updatedBorrowed));
+      alert(`Successfully borrowed "${book.name || book.title}" for ${days} days!`);
+      await loadData();
+    } catch (err) {
+      alert(`Borrow failed: ${err.message}`);
+    }
   };
 
-  const handleReturn = (book, index) => {
-    const today = new Date();
-    const returnDate = today.toISOString().split('T')[0];
-    const dueDate = new Date(book.dueDate);
-    const delayDays = Math.max(0, Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24)));
+  const handleReturn = async (borrowing) => {
+    try {
+      const today = new Date();
+      const returnDate = today.toISOString().split('T')[0];
+      const dueDate = new Date(borrowing.dueDate);
+      const delayDays = Math.max(0, Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24)));
 
-    const returnedItem = {
-      ...book,
-      returnDate: returnDate,
-    };
+      await borrowService.returnBook({
+        borrowingId: borrowing.id,
+        bookFallback: borrowing,
+      });
 
-    const updatedBorrowed = borrowedBooks.filter((_, i) => i !== index);
-    const updatedReturned = [...returnedBooks, returnedItem];
+      alert(
+        `Book: ${borrowing.name}\nReturned on: ${returnDate}\nDue Date was: ${borrowing.dueDate}\n${
+          delayDays > 0 ? '⚠ Delayed by ' + delayDays + ' days!' : '✅ Returned on time!'
+        }`
+      );
 
-    setBorrowedBooks(updatedBorrowed);
-    setReturnedBooks(updatedReturned);
-
-    localStorage.setItem('borrowedBooks', JSON.stringify(updatedBorrowed));
-    localStorage.setItem('returnedBooks', JSON.stringify(updatedReturned));
-
-    alert(
-      `Book: ${book.name}\nReturned on: ${returnDate}\nDue Date was: ${book.dueDate}\n${
-        delayDays > 0 ? '⚠ Delayed by ' + delayDays + ' days!' : '✅ Returned on time!'
-      }`
-    );
+      await loadData();
+    } catch (err) {
+      alert(`Return failed: ${err.message}`);
+    }
   };
 
-  const handleDeleteReturned = (index) => {
-    const updatedReturned = returnedBooks.filter((_, i) => i !== index);
-    setReturnedBooks(updatedReturned);
-    localStorage.setItem('returnedBooks', JSON.stringify(updatedReturned));
+  const handleDeleteReturned = async (borrowing) => {
+    try {
+      await borrowService.deleteReturnedBorrowing(borrowing.id);
+      setReturnedBooks((prev) => prev.filter((b) => b.id !== borrowing.id));
+    } catch (err) {
+      alert(`Delete failed: ${err.message}`);
+    }
   };
 
   const handleLogout = async () => {
@@ -185,9 +100,10 @@ export default function UserDashboard() {
     navigate('/login');
   };
 
-  // Filter available books: not currently in borrowed list, matching search
+  // Determine available books dynamically:
+  // A book is available if its ID is not currently among active borrowings
   const availableBooks = books
-    .filter((b) => !borrowedBooks.some((borrowed) => borrowed.name === (b.name || b.title)))
+    .filter((b) => !borrowedBooks.some((borrowed) => borrowed.bookId == b.id || borrowed.name === (b.name || b.title)))
     .filter((b) => {
       if (!searchText.trim()) return true;
       const lower = searchText.toLowerCase();
@@ -262,14 +178,14 @@ export default function UserDashboard() {
           items={borrowedBooks}
           emptyMessage="No borrowed books"
           tableId="borrowedBody"
-          renderRow={(book, index) => (
-            <tr key={book.id || index}>
-              <td>{book.name || book.title}</td>
-              <td>{book.author}</td>
-              <td>{book.genre}</td>
-              <td>{book.dueDate}</td>
+          renderRow={(borrowing, index) => (
+            <tr key={borrowing.id || index}>
+              <td>{borrowing.name}</td>
+              <td>{borrowing.author}</td>
+              <td>{borrowing.genre}</td>
+              <td>{borrowing.dueDate}</td>
               <td>
-                <button className="btn btn-warning btn-sm" onClick={() => handleReturn(book, index)}>
+                <button className="btn btn-warning btn-sm" onClick={() => handleReturn(borrowing)}>
                   Return
                 </button>
               </td>
@@ -284,14 +200,14 @@ export default function UserDashboard() {
           items={returnedBooks}
           emptyMessage="No returned books"
           tableId="returnedBody"
-          renderRow={(book, index) => (
-            <tr key={book.id || index}>
-              <td>{book.name || book.title}</td>
-              <td>{book.author}</td>
-              <td>{book.dueDate}</td>
-              <td>{book.returnDate}</td>
+          renderRow={(borrowing, index) => (
+            <tr key={borrowing.id || index}>
+              <td>{borrowing.name}</td>
+              <td>{borrowing.author}</td>
+              <td>{borrowing.dueDate}</td>
+              <td>{borrowing.returnDate}</td>
               <td>
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteReturned(index)}>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteReturned(borrowing)}>
                   Delete
                 </button>
               </td>

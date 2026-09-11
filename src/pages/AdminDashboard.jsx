@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
 import * as bookService from '../services/bookService.js';
+import * as borrowService from '../services/borrowService.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
   const [books, setBooks] = useState([]);
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [returnedBooks, setReturnedBooks] = useState([]);
@@ -21,113 +22,28 @@ export default function AdminDashboard() {
   const [isLoadingBooks, setIsLoadingBooks] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    async function loadCatalog() {
-      setIsLoadingBooks(true);
-      try {
-        const catalog = await bookService.getBooks();
-        if (catalog && catalog.length > 0) {
-          setBooks(catalog);
-        } else {
-          await loadBooksFromCSV();
-        }
-      } catch (err) {
-        console.error('Failed to load books catalog:', err);
-      } finally {
-        setIsLoadingBooks(false);
-      }
-    }
-
-    const storedBorrowed = JSON.parse(localStorage.getItem('borrowedBooks')) || [];
-    const storedReturned = JSON.parse(localStorage.getItem('returnedBooks')) || [];
-    setBorrowedBooks(storedBorrowed);
-    setReturnedBooks(storedReturned);
-
-    loadCatalog();
-  }, []);
-
-  const loadBooksFromCSV = async () => {
+  const loadAllData = async () => {
+    setIsLoadingBooks(true);
     try {
-      const fileSize = 77800000;
-      const chunkSize = 500 * 1024;
-      const maxStart = fileSize - chunkSize - 2000;
-      const startByte = Math.max(0, Math.floor(Math.random() * maxStart));
-      const endByte = startByte + chunkSize;
+      // 1. Fetch catalog
+      const catalog = await bookService.getBooks();
+      setBooks(catalog || []);
 
-      const response = await fetch('/books.csv', {
-        headers: { Range: `bytes=${startByte}-${endByte}` },
-      });
-
-      let text = '';
-      if (response.status === 206) {
-        text = await response.text();
-      } else {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let bytesRead = 0;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          text += decoder.decode(value, { stream: true });
-          bytesRead += value.length;
-          if (bytesRead >= chunkSize) {
-            reader.cancel();
-            break;
-          }
-        }
-      }
-
-      const lines = text.split('\n');
-      const startIdx = response.status === 206 && startByte > 0 ? 1 : 1;
-      const parsedBooks = [];
-      const genres = ['Fiction', 'Mystery', 'Sci-Fi', 'Biography', 'History', 'Fantasy', 'Romance', 'Thriller'];
-
-      for (let i = startIdx; i < lines.length - 1; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const parts = line.split('";"');
-        if (parts.length < 3) continue;
-
-        const isbn = parts[0].replace(/^"/, '').trim();
-        const title = parts[1].trim();
-        const bookAuthor = parts[2].trim();
-
-        let hash = 0;
-        for (let j = 0; j < isbn.length; j++) {
-          hash = isbn.charCodeAt(j) + ((hash << 5) - hash);
-        }
-        const assignedGenre = genres[Math.abs(hash) % genres.length];
-
-        parsedBooks.push({
-          id: isbn || Date.now() + i,
-          name: title,
-          title: title,
-          author: bookAuthor,
-          genre: assignedGenre,
-        });
-      }
-
-      if (parsedBooks.length > 0) {
-        localStorage.setItem('books', JSON.stringify(parsedBooks));
-        localStorage.setItem('csvLoaded', 'true');
-        setBooks(parsedBooks);
-      } else {
-        throw new Error('No books parsed.');
-      }
-    } catch (error) {
-      console.error('Error preloading books:', error);
-      const fallbackBooks = [
-        { id: '0195153448', name: 'Classical Mythology', title: 'Classical Mythology', author: 'Mark P. O. Morford', genre: 'Mythology' },
-        { id: '0002005018', name: 'Clara Callan', title: 'Clara Callan', author: 'Richard Bruce Wright', genre: 'Fiction' },
-        { id: '0060973129', name: 'Decision in Normandy', title: 'Decision in Normandy', author: "Carlo D'Este", genre: 'History' },
-        { id: '0374157065', name: 'Flu: Great Influenza Pandemic of 1918', title: 'Flu: Great Influenza Pandemic of 1918', author: 'Gina Bari Kolata', genre: 'Science' },
-      ];
-      localStorage.setItem('books', JSON.stringify(fallbackBooks));
-      localStorage.setItem('csvLoaded', 'true');
-      setBooks(fallbackBooks);
+      // 2. Fetch all system borrowings (active & returned)
+      const active = await borrowService.getActiveBorrowings();
+      const returned = await borrowService.getReturnedBorrowings();
+      setBorrowedBooks(active || []);
+      setReturnedBooks(returned || []);
+    } catch (err) {
+      console.error('Failed to load admin dashboard data:', err);
+    } finally {
+      setIsLoadingBooks(false);
     }
   };
+
+  useEffect(() => {
+    loadAllData();
+  }, []);
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -198,20 +114,6 @@ export default function AdminDashboard() {
       } catch (err) {
         alert(`Error deleting books: ${err.message}`);
       }
-    }
-  };
-
-  const handleRestoreCSV = async () => {
-    if (
-      window.confirm(
-        'Are you sure you want to load books from CSV? This will overwrite your current book list.'
-      )
-    ) {
-      localStorage.removeItem('books');
-      localStorage.removeItem('csvLoaded');
-      setIsLoadingBooks(true);
-      await loadBooksFromCSV();
-      setIsLoadingBooks(false);
     }
   };
 
@@ -326,9 +228,6 @@ export default function AdminDashboard() {
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h3 className="mb-0">Available Books</h3>
           <div>
-            <button className="btn btn-outline-warning btn-sm mr-2" onClick={handleRestoreCSV}>
-              Load CSV Books
-            </button>
             <button className="btn btn-outline-danger btn-sm" onClick={handleDeleteAll}>
               Delete All Books
             </button>
