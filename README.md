@@ -198,6 +198,3 @@ Follow our comprehensive [Supabase Production Setup Guide](./supabase/production
 | **Administrator** | `admin123` | `admin123` | `/admin`, `/dashboard`, `/about`, `/contact` |
 
 ---
-
-## 📄 License
-This project is licensed under the MIT License.
