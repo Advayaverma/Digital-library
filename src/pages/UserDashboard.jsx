@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import SearchBar from '../components/SearchBar.jsx';
+import BookTable from '../components/BookTable.jsx';
 
 export default function UserDashboard({ onNavigate }) {
   const [books, setBooks] = useState([]);
@@ -7,7 +9,6 @@ export default function UserDashboard({ onNavigate }) {
   const [searchText, setSearchText] = useState('');
   const [isLoadingCSV, setIsLoadingCSV] = useState(false);
 
-  // Load books from localStorage or CSV on initial mount
   useEffect(() => {
     const storedBooks = JSON.parse(localStorage.getItem('books')) || [];
     const storedBorrowed = JSON.parse(localStorage.getItem('borrowedBooks')) || [];
@@ -27,15 +28,13 @@ export default function UserDashboard({ onNavigate }) {
     setIsLoadingCSV(true);
     try {
       const fileSize = 77800000;
-      const chunkSize = 500 * 1024; // 500 KB
+      const chunkSize = 500 * 1024;
       const maxStart = fileSize - chunkSize - 2000;
       const startByte = Math.max(0, Math.floor(Math.random() * maxStart));
       const endByte = startByte + chunkSize;
 
       const response = await fetch('/books.csv', {
-        headers: {
-          Range: `bytes=${startByte}-${endByte}`,
-        },
+        headers: { Range: `bytes=${startByte}-${endByte}` },
       });
 
       let text = '';
@@ -174,7 +173,6 @@ export default function UserDashboard({ onNavigate }) {
     }
   };
 
-  // Filter available books: not currently in borrowed list, matching search
   const availableBooks = books
     .filter((b) => !borrowedBooks.some((borrowed) => borrowed.name === b.name))
     .filter((b) => {
@@ -214,139 +212,79 @@ export default function UserDashboard({ onNavigate }) {
         </div>
         <hr style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
 
-        {/* Search Books */}
-        <input
-          className="form-control mb-4"
-          id="searchTxt"
-          type="search"
-          placeholder="Search Books by Name, Author, or Genre"
+        {/* Reusable Search Bar */}
+        <SearchBar
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
+          onChange={setSearchText}
+          placeholder="Search Books by Name, Author, or Genre"
         />
 
-        {/* Available Books */}
+        {/* Available Books Table */}
         <h3>Available Books</h3>
-        <div className="table-responsive">
-          <table className="table table-dark table-hover mt-3">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Author</th>
-                <th>Genre</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="tableBody">
-              {isLoadingCSV ? (
-                <tr>
-                  <td colSpan="4" className="text-center">
-                    <div className="spinner-border text-light" role="status" style={{ width: '1.5rem', height: '1.5rem' }}>
-                      <span className="sr-only">Loading...</span>
-                    </div>
-                    <span className="ml-2">Preloading random books from CSV...</span>
-                  </td>
-                </tr>
-              ) : availableBooks.length > 0 ? (
-                availableBooks.map((book, index) => (
-                  <tr key={book.id || index}>
-                    <td>{book.name}</td>
-                    <td>{book.author}</td>
-                    <td>{book.genre}</td>
-                    <td>
-                      <button className="btn btn-success btn-sm" onClick={() => handleBorrow(book)}>
-                        Borrow
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="text-center">
-                    No books available
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BookTable
+          headers={['Name', 'Author', 'Genre', 'Action']}
+          items={availableBooks}
+          isLoading={isLoadingCSV}
+          loadingMessage="Preloading random books from CSV..."
+          emptyMessage="No books available"
+          tableId="tableBody"
+          renderRow={(book, index) => (
+            <tr key={book.id || index}>
+              <td>{book.name}</td>
+              <td>{book.author}</td>
+              <td>{book.genre}</td>
+              <td>
+                <button className="btn btn-success btn-sm" onClick={() => handleBorrow(book)}>
+                  Borrow
+                </button>
+              </td>
+            </tr>
+          )}
+        />
 
-        {/* Borrowed Books */}
+        {/* Borrowed Books Table */}
         <h3 className="mt-5">Borrowed Books</h3>
-        <div className="table-responsive">
-          <table className="table table-dark table-hover mt-3">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Author</th>
-                <th>Genre</th>
-                <th>Due Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="borrowedBody">
-              {borrowedBooks.length > 0 ? (
-                borrowedBooks.map((book, index) => (
-                  <tr key={book.id || index}>
-                    <td>{book.name}</td>
-                    <td>{book.author}</td>
-                    <td>{book.genre}</td>
-                    <td>{book.dueDate}</td>
-                    <td>
-                      <button className="btn btn-warning btn-sm" onClick={() => handleReturn(book, index)}>
-                        Return
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="text-center">
-                    No borrowed books
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BookTable
+          headers={['Name', 'Author', 'Genre', 'Due Date', 'Action']}
+          items={borrowedBooks}
+          emptyMessage="No borrowed books"
+          tableId="borrowedBody"
+          renderRow={(book, index) => (
+            <tr key={book.id || index}>
+              <td>{book.name}</td>
+              <td>{book.author}</td>
+              <td>{book.genre}</td>
+              <td>{book.dueDate}</td>
+              <td>
+                <button className="btn btn-warning btn-sm" onClick={() => handleReturn(book, index)}>
+                  Return
+                </button>
+              </td>
+            </tr>
+          )}
+        />
 
-        {/* Returned Books */}
+        {/* Returned Books Table */}
         <h3 className="mt-5">Returned Books</h3>
-        <div className="table-responsive">
-          <table className="table table-dark table-hover mt-3">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Author</th>
-                <th>Due Date</th>
-                <th>Return Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="returnedBody">
-              {returnedBooks.length > 0 ? (
-                returnedBooks.map((book, index) => (
-                  <tr key={book.id || index}>
-                    <td>{book.name}</td>
-                    <td>{book.author}</td>
-                    <td>{book.dueDate}</td>
-                    <td>{book.returnDate}</td>
-                    <td>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteReturned(index)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="text-center">
-                    No returned books
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BookTable
+          headers={['Name', 'Author', 'Due Date', 'Return Date', 'Action']}
+          items={returnedBooks}
+          emptyMessage="No returned books"
+          tableId="returnedBody"
+          renderRow={(book, index) => (
+            <tr key={book.id || index}>
+              <td>{book.name}</td>
+              <td>{book.author}</td>
+              <td>{book.dueDate}</td>
+              <td>{book.returnDate}</td>
+              <td>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteReturned(index)}>
+                  Delete
+                </button>
+              </td>
+            </tr>
+          )}
+        />
       </div>
     </div>
   );

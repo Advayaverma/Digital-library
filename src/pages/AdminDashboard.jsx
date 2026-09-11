@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import SearchBar from '../components/SearchBar.jsx';
+import BookTable from '../components/BookTable.jsx';
 
 export default function AdminDashboard({ onNavigate }) {
   const [books, setBooks] = useState([]);
@@ -31,7 +33,7 @@ export default function AdminDashboard({ onNavigate }) {
     setIsLoadingCSV(true);
     try {
       const fileSize = 77800000;
-      const chunkSize = 500 * 1024; // 500 KB
+      const chunkSize = 500 * 1024;
       const maxStart = fileSize - chunkSize - 2000;
       const startByte = Math.max(0, Math.floor(Math.random() * maxStart));
       const endByte = startByte + chunkSize;
@@ -119,12 +121,10 @@ export default function AdminDashboard({ onNavigate }) {
     let updatedBooks = [...books];
 
     if (bookId) {
-      // Edit existing book
       updatedBooks = updatedBooks.map((b) =>
         b.id == bookId ? { ...b, name: bookName, author, genre } : b
       );
     } else {
-      // Add new book
       const newBook = {
         id: Date.now(),
         name: bookName,
@@ -137,7 +137,6 @@ export default function AdminDashboard({ onNavigate }) {
     setBooks(updatedBooks);
     localStorage.setItem('books', JSON.stringify(updatedBooks));
 
-    // Reset form
     setBookId('');
     setBookName('');
     setAuthor('');
@@ -277,14 +276,11 @@ export default function AdminDashboard({ onNavigate }) {
           </div>
         </form>
 
-        {/* Search Bar */}
-        <input
-          className="form-control mb-3"
-          id="searchTxt"
-          type="search"
-          placeholder="Search Books by Name, Author, or Genre"
+        {/* Reusable Search Bar */}
+        <SearchBar
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
+          onChange={setSearchText}
+          placeholder="Search Books by Name, Author, or Genre"
         />
 
         {/* Available Books Header & Buttons */}
@@ -301,122 +297,65 @@ export default function AdminDashboard({ onNavigate }) {
         </div>
 
         {/* Available Books Table */}
-        <div className="table-responsive">
-          <table className="table table-dark table-hover mt-3">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Author</th>
-                <th>Genres</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="adminTableBody">
-              {isLoadingCSV ? (
-                <tr>
-                  <td colSpan="4" className="text-center">
-                    <div className="spinner-border text-light" role="status" style={{ width: '1.5rem', height: '1.5rem' }}>
-                      <span className="sr-only">Loading...</span>
-                    </div>
-                    <span className="ml-2">Loading random books from CSV...</span>
-                  </td>
-                </tr>
-              ) : filteredBooks.length > 0 ? (
-                filteredBooks.map((book) => (
-                  <tr key={book.id}>
-                    <td>{book.name}</td>
-                    <td>{book.author}</td>
-                    <td>{book.genre}</td>
-                    <td>
-                      <button className="btn btn-warning btn-sm mr-2" onClick={() => handleEdit(book)}>
-                        Edit
-                      </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleRemove(book.id)}>
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="text-center">
-                    No books found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BookTable
+          headers={['Name', 'Author', 'Genres', 'Action']}
+          items={filteredBooks}
+          isLoading={isLoadingCSV}
+          loadingMessage="Loading random books from CSV..."
+          emptyMessage="No books found"
+          tableId="adminTableBody"
+          renderRow={(book) => (
+            <tr key={book.id}>
+              <td>{book.name}</td>
+              <td>{book.author}</td>
+              <td>{book.genre}</td>
+              <td>
+                <button className="btn btn-warning btn-sm mr-2" onClick={() => handleEdit(book)}>
+                  Edit
+                </button>
+                <button className="btn btn-danger btn-sm" onClick={() => handleRemove(book.id)}>
+                  Remove
+                </button>
+              </td>
+            </tr>
+          )}
+        />
 
         {/* Borrowed Books Table */}
         <h3 className="mt-5">Borrowed Books</h3>
-        <div className="table-responsive">
-          <table className="table table-dark table-hover mt-3">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Book Name</th>
-                <th>Author</th>
-                <th>Genre</th>
-                <th>Due Date</th>
-              </tr>
-            </thead>
-            <tbody id="borrowedBooksTable">
-              {borrowedBooks.length > 0 ? (
-                borrowedBooks.map((book, index) => (
-                  <tr key={index}>
-                    <td>{book.user || 'Unknown User'}</td>
-                    <td>{book.name}</td>
-                    <td>{book.author}</td>
-                    <td>{book.genre}</td>
-                    <td>{book.dueDate}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="text-center">
-                    No borrowed books
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BookTable
+          headers={['User', 'Book Name', 'Author', 'Genre', 'Due Date']}
+          items={borrowedBooks}
+          emptyMessage="No borrowed books"
+          tableId="borrowedBooksTable"
+          renderRow={(book, index) => (
+            <tr key={index}>
+              <td>{book.user || 'Unknown User'}</td>
+              <td>{book.name}</td>
+              <td>{book.author}</td>
+              <td>{book.genre}</td>
+              <td>{book.dueDate}</td>
+            </tr>
+          )}
+        />
 
         {/* Returned Books Table */}
         <h3 className="mt-5">Returned Books</h3>
-        <div className="table-responsive">
-          <table className="table table-dark table-hover mt-3">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Book Name</th>
-                <th>Author</th>
-                <th>Due Date</th>
-                <th>Return Date</th>
-              </tr>
-            </thead>
-            <tbody id="returnedBooksTable">
-              {returnedBooks.length > 0 ? (
-                returnedBooks.map((book, index) => (
-                  <tr key={index}>
-                    <td>{book.user || 'Unknown User'}</td>
-                    <td>{book.name}</td>
-                    <td>{book.author}</td>
-                    <td>{book.dueDate}</td>
-                    <td>{book.returnDate}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="text-center">
-                    No returned books
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BookTable
+          headers={['User', 'Book Name', 'Author', 'Due Date', 'Return Date']}
+          items={returnedBooks}
+          emptyMessage="No returned books"
+          tableId="returnedBooksTable"
+          renderRow={(book, index) => (
+            <tr key={index}>
+              <td>{book.user || 'Unknown User'}</td>
+              <td>{book.name}</td>
+              <td>{book.author}</td>
+              <td>{book.dueDate}</td>
+              <td>{book.returnDate}</td>
+            </tr>
+          )}
+        />
       </div>
     </div>
   );
