@@ -16,7 +16,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "seed": "node scripts/seed-books.js",
-    "test": "node --test"
+    "test": "node --test",
+    "verify": "node scripts/verify-supabase.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
