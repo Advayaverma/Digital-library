@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
@@ -18,7 +19,7 @@ export default function App() {
       {/* Top Navbar rendered on public pages */}
       {isPublicPage && <Navbar />}
 
-      {/* Declarative Client-side Routes */}
+      {/* Declarative Client-side Routes with Role Protection */}
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -26,8 +27,28 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/dashboard" element={<UserDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+
+          {/* User Portal: Protected for authenticated users */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['user', 'admin']}>
+                <UserDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Portal: Protected strictly for administrators */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

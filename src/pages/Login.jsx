@@ -28,14 +28,15 @@ export default function Login() {
     setIsSubmitting(true);
 
     const email = resolveEmail(userIdentifier);
-    const { error } = await signIn(email, userPassword);
+    const { data, error } = await signIn(email, userPassword);
 
     setIsSubmitting(false);
 
     if (error) {
       setErrorMessage(error.message || 'Invalid User credentials!');
     } else {
-      localStorage.setItem('role', 'user');
+      const currentRole = data?.user?.user_metadata?.role || 'user';
+      localStorage.setItem('role', currentRole);
       navigate('/dashboard');
     }
   };
@@ -46,15 +47,23 @@ export default function Login() {
     setIsSubmitting(true);
 
     const email = resolveEmail(adminIdentifier);
-    const { error } = await signIn(email, adminPassword);
+    const { data, error } = await signIn(email, adminPassword);
 
     setIsSubmitting(false);
 
     if (error) {
       setErrorMessage(error.message || 'Invalid Admin credentials!');
     } else {
-      localStorage.setItem('role', 'admin');
-      navigate('/admin');
+      // Check if user is an administrator
+      const currentRole = data?.user?.user_metadata?.role || localStorage.getItem('role') || 'admin';
+      localStorage.setItem('role', currentRole);
+
+      if (currentRole === 'admin') {
+        navigate('/admin');
+      } else {
+        alert('Notice: Your account has standard user privileges. Redirecting to User Dashboard.');
+        navigate('/dashboard');
+      }
     }
   };
 
