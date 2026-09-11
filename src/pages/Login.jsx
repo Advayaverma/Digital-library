@@ -1,54 +1,60 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
+
   const [activeTab, setActiveTab] = useState('user');
-  const [userUsername, setUserUsername] = useState('');
+  const [userIdentifier, setUserIdentifier] = useState('');
   const [userPassword, setUserPassword] = useState('');
-  const [adminUsername, setAdminUsername] = useState('');
+  const [adminIdentifier, setAdminIdentifier] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleUserLogin = (e) => {
+  const resolveEmail = (identifier) => {
+    if (identifier.includes('@')) return identifier;
+    // Check if user previously registered with a matching username in local profiles
+    const registered = JSON.parse(localStorage.getItem('users')) || [];
+    const match = registered.find((u) => u.username?.toLowerCase() === identifier.toLowerCase());
+    return match?.email || `${identifier}@digitallibrary.local`;
+  };
+
+  const handleUserLogin = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setIsSubmitting(true);
 
-    const users = JSON.parse(localStorage.getItem('users')) || [
-      { username: 'user123', password: 'userpass' },
-    ];
-    const user = users.find(
-      (u) => u.username === userUsername && u.password === userPassword
-    );
+    const email = resolveEmail(userIdentifier);
+    const { error } = await signIn(email, userPassword);
 
-    if (user) {
-      localStorage.setItem('role', 'user');
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      alert('User login successful!');
-      navigate('/dashboard');
+    setIsSubmitting(false);
+
+    if (error) {
+      setErrorMessage(error.message || 'Invalid User credentials!');
     } else {
-      setErrorMessage('Invalid User credentials!');
+      localStorage.setItem('role', 'user');
+      navigate('/dashboard');
     }
   };
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setIsSubmitting(true);
 
-    const admins = JSON.parse(localStorage.getItem('admins')) || [
-      { username: 'admin123', password: 'adminpass' },
-    ];
-    const admin = admins.find(
-      (a) => a.username === adminUsername && a.password === adminPassword
-    );
+    const email = resolveEmail(adminIdentifier);
+    const { error } = await signIn(email, adminPassword);
 
-    if (admin) {
-      localStorage.setItem('role', 'admin');
-      localStorage.setItem('currentUser', JSON.stringify(admin));
-      alert('Admin login successful!');
-      navigate('/admin');
+    setIsSubmitting(false);
+
+    if (error) {
+      setErrorMessage(error.message || 'Invalid Admin credentials!');
     } else {
-      setErrorMessage('Invalid Admin credentials!');
+      localStorage.setItem('role', 'admin');
+      navigate('/admin');
     }
   };
 
@@ -92,10 +98,11 @@ export default function Login() {
               <input
                 type="text"
                 id="userUsername"
-                placeholder="Enter username"
-                value={userUsername}
-                onChange={(e) => setUserUsername(e.target.value)}
+                placeholder="Enter username or email"
+                value={userIdentifier}
+                onChange={(e) => setUserIdentifier(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="input-group">
@@ -107,10 +114,11 @@ export default function Login() {
                 value={userPassword}
                 onChange={(e) => setUserPassword(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
-            <button type="submit" className="btn-user">
-              Login as User
+            <button type="submit" className="btn-user" disabled={isSubmitting}>
+              {isSubmitting ? 'Logging in...' : 'Login as User'}
             </button>
           </form>
         )}
@@ -123,10 +131,11 @@ export default function Login() {
               <input
                 type="text"
                 id="adminUsername"
-                placeholder="Enter admin username"
-                value={adminUsername}
-                onChange={(e) => setAdminUsername(e.target.value)}
+                placeholder="Enter admin username or email"
+                value={adminIdentifier}
+                onChange={(e) => setAdminIdentifier(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="input-group">
@@ -138,10 +147,11 @@ export default function Login() {
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
-            <button type="submit" className="btn-admin">
-              Login as Admin
+            <button type="submit" className="btn-admin" disabled={isSubmitting}>
+              {isSubmitting ? 'Logging in...' : 'Login as Admin'}
             </button>
           </form>
         )}

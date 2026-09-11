@@ -1,35 +1,48 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth.jsx';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long!');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match!');
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('users')) || [];
+    setIsSubmitting(true);
 
-    if (users.some((user) => user.username === username)) {
-      setErrorMessage('Username already exists!');
-      return;
+    const { error } = await signUp({
+      email,
+      password,
+      username,
+    });
+
+    setIsSubmitting(false);
+
+    if (error) {
+      setErrorMessage(error.message || 'Error signing up. Please try again.');
+    } else {
+      alert('Signup successful! You can now login.');
+      navigate('/login');
     }
-
-    users.push({ username, email, password });
-    localStorage.setItem('users', JSON.stringify(users));
-
-    alert('Signup successful! You can now login.');
-    navigate('/login');
   };
 
   return (
@@ -51,6 +64,7 @@ export default function Signup() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              disabled={isSubmitting}
             />
           </div>
           <div className="input-group">
@@ -62,6 +76,7 @@ export default function Signup() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isSubmitting}
             />
           </div>
           <div className="input-group">
@@ -69,10 +84,11 @@ export default function Signup() {
             <input
               type="password"
               id="signupPassword"
-              placeholder="Create password"
+              placeholder="Create password (min. 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={isSubmitting}
             />
           </div>
           <div className="input-group">
@@ -84,10 +100,11 @@ export default function Signup() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              disabled={isSubmitting}
             />
           </div>
-          <button type="submit" className="btn-signup">
-            Sign Up
+          <button type="submit" className="btn-signup" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 

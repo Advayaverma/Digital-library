@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
 import * as bookService from '../services/bookService.js';
+import { useAuth } from '../hooks/useAuth.jsx';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const [books, setBooks] = useState([]);
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [returnedBooks, setReturnedBooks] = useState([]);
@@ -213,9 +215,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('role');
-    localStorage.removeItem('currentUser');
+  const handleLogout = async () => {
+    await signOut();
     navigate('/login');
   };
 
