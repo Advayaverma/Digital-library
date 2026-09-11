@@ -1,79 +1,203 @@
-# Digital Library
+# 📚 Digital Library Platform
 
-A modern, responsive web application for managing and browsing a digital library. The application features a dynamic landing page with rich animations, and distinct dashboards for users (to browse and borrow books) and admins (to manage the library catalog and track borrowings).
+A production-ready, full-stack digital library management web application migrated from legacy vanilla scripts to **React 18**, **Vite**, **React Router v7**, and **Supabase** (PostgreSQL, Authentication, Row-Level Security, and Cloud Storage).
+
+Hosted on **Vercel** with automated continuous integration via **GitHub Actions**.
+
+---
+
+## 🏛️ System Architecture
+
+```mermaid
+graph TD
+    subgraph Client["Frontend Client (Vercel Edge / React 18 SPA)"]
+        UI["React Router UI<br/>(Home, About, Contact, Login, Signup)"]
+        Dashboards["Dashboards<br/>(/dashboard & /admin)"]
+        AuthContext["Auth Context & RBAC<br/>(useAuth & ProtectedRoute)"]
+        Services["Service Layer<br/>(bookService, borrowService, profileService)"]
+        UI --> AuthContext
+        Dashboards --> AuthContext
+        Dashboards --> Services
+        Services --> SupabaseClient["Supabase JS Client / Local Fallback"]
+    end
+
+    subgraph Supabase["Cloud Backend (Supabase BaaS)"]
+        Auth["Supabase GoTrue Auth<br/>(Email / Password JWT)"]
+        Postgres[(PostgreSQL Database)]
+        Storage["Supabase Storage<br/>(book-covers bucket)"]
+        RLS["Row Level Security (RLS)<br/>(granular RBAC policies)"]
+
+        SupabaseClient --> Auth
+        SupabaseClient --> Postgres
+        SupabaseClient --> Storage
+        Postgres --- RLS
+    end
+```
+
+---
+
+## 🚀 Key Features
+
+* **Modern Single Page Application (SPA)**: Built with React 18 and Vite for blazing-fast Hot Module Replacement (HMR) and sub-2-second production builds.
+* **Role-Based Access Control (RBAC)**: Client-side route protection via `<ProtectedRoute>` ensuring `/admin` is restricted to authorized administrators and `/dashboard` is accessible to authenticated users.
+* **Concurrency-Safe Book Borrowing**: PostgreSQL partial unique index (`unique_active_book_borrowing`) guarantees that two users can never simultaneously borrow the same book.
+* **Robust Error Handling & Loading States**: Dismissible Bootstrap notification banners (`AlertBanner`) and inline button loaders (`Saving...`, `Borrowing...`, `Returning...`, `Removing...`) to prevent double-submits.
+* **Resilient Dual-Mode Architecture**: If Supabase environment variables are not yet configured, the application automatically activates a local in-memory simulation mode so the UI remains 100% testable out-of-the-box.
+* **Automated CI/CD Pipeline**: GitHub Actions matrix workflow verifying unit and service integration tests across Node 20 and Node 22 on every commit.
+
+---
+
+## 🗄️ Database Schema & Relationships
+
+```mermaid
+erDiagram
+    PROFILES ||--o{ BORROWINGS : "places"
+    BOOKS ||--o{ BORROWINGS : "loaned in"
+
+    PROFILES {
+        uuid id PK "References auth.users"
+        text username "Unique user identifier"
+        text role "user | admin"
+        timestamp updated_at
+    }
+
+    BOOKS {
+        bigserial id PK
+        text title "Book title"
+        text author "Author name"
+        text genre "Genre categories"
+        text isbn "ISBN identifier"
+        text cover_image_url "Cover URL or Storage path"
+        timestamp created_at
+    }
+
+    BORROWINGS {
+        bigserial id PK
+        bigint book_id FK "References books(id)"
+        uuid user_id FK "References profiles(id)"
+        date borrow_date "Date borrowed"
+        date due_date "Expected return date"
+        date return_date "Actual return date"
+        text status "borrowed | returned"
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+* **Data Integrity Trigger**: `on_auth_user_created` automatically provisions a profile in `public.profiles` with a default `user` role upon user registration.
+* **Concurrency Protection**:
+  ```sql
+  CREATE UNIQUE INDEX unique_active_book_borrowing
+  ON public.borrowings (book_id)
+  WHERE status = 'borrowed';
+  ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Frontend**: HTML5, Vanilla CSS, JavaScript (ES6+)
-* **Styling Framework**: Bootstrap 4.3.1 (used for dashboards)
-* **Icons**: FontAwesome 6.0.0
-* **Animations**: 
-  * [GSAP (GreenSock Animation Platform)](https://greensock.com/gsap/) for advanced timelines and dynamic animations.
-  * [Locomotive Scroll](https://locomotivemtl.github.io/locomotive-scroll/) for smooth scrolling and scroll-bound animations.
-* **Storage & Persistence**: `localStorage` (stores users, admins, books list, borrowed books, and returned books details directly in the browser).
-* **Seed Data**: A partial HTTP `Range` request is used to download a random **500 KB chunk** of a large 77.8 MB CSV file (`public/books.csv`) to initialize the book list dynamically without heavy page loads.
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Framework** | React 18 + Vite 6 | High-performance component-driven SPA |
+| **Routing** | React Router v7 | Declarative client-side routing & protected routes |
+| **Database** | PostgreSQL (Supabase) | Relational database with foreign keys & partial indexes |
+| **Authentication** | Supabase Auth (GoTrue) | Secure salted password hashing and JWT sessions |
+| **Authorization** | PostgreSQL RLS | Database-enforced role policies |
+| **Styling** | Vanilla CSS + Bootstrap 4 | Retained original visual aesthetics, responsive grid, tables |
+| **Testing** | Node.js Native Runner (`node:test`) | Zero-dependency unit and service integration testing |
+| **CI / CD** | GitHub Actions | Automated build and test verification |
+| **Hosting** | Vercel | Production CDN deployment with SPA rewrites |
 
 ---
 
-## 🚀 How the Project Works
+## 📦 Getting Started
 
-1. **Landing Page**: Located at [index.html](index.html). It serves as the entrance, styled using Locomotive Scroll for custom smooth scroll dynamics and GSAP for entry animations.
-2. **Preloading Seed Data**:
-   * When either dashboard is loaded, the application checks if the `books` array exists in `localStorage`.
-   * If it is empty, the application sends a `fetch` request targeting `public/books.csv` with a random byte `Range` header (e.g. `bytes=startByte-endByte`).
-   * It downloads a lightweight 500 KB section, parses the CSV content, assigns genres using a string hash of the book's ISBN, and saves the set to `localStorage`.
-   * If this request fails, the application falls back to a preset list of popular books.
-3. **Data Flows**:
-   * Any action—adding, borrowing, returning, editing, or deleting a book—mutates the state stored in `localStorage`, which immediately updates the UI tables in real-time.
+### Prerequisites
+* [Node.js](https://nodejs.org/) (version **>= 18.0.0**)
+* [npm](https://www.npmjs.com/) (version **>= 9.0.0**)
+* (Optional) [Docker](https://www.docker.com/) for containerized execution
 
----
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/Advayaverma/Digital-library.git
+cd Digital-library
+npm install
+```
 
-## 🔑 Authentication Guide
+### 2. Environment Variables Configuration
+Copy the sample environment file:
+```bash
+cp .env.example .env
+```
+Populate `.env` with your Supabase credentials (optional for local testing; the app includes local fallback simulation):
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-publishable-anon-key-here
+```
 
-### How to Sign Up
-To register a new user account:
-1. Navigate to the **Sign Up** page ([lib/signup.html](lib/signup.html)).
-2. Fill in a unique username, your email, and choose a password.
-3. Submit the form. This adds your account credentials directly to the `"users"` array stored in `localStorage`.
-4. You will be redirected to the Login page.
-
----
-
-### How to Log In
-
-Navigate to the **Login** page ([lib/login.html](lib/login.html)). There are two login tabs available at the top of the form:
-
-#### 1. Login as User
-* Select the **Login as User** tab.
-* Enter your registered username and password.
-* **Default Credentials (if you haven't signed up yet)**:
-  * **Username**: `user123`
-  * **Password**: `userpass`
-* Successful login redirects you to the [User Dashboard](lib/user-dashboard.html).
-
-#### 2. Login as Admin
-* Select the **Login as Admin** tab.
-* Enter your admin credentials.
-* **Default Credentials**:
-  * **Username**: `admin123`
-  * **Password**: `adminpass`
-* Successful login redirects you to the [Admin Dashboard](lib/admin-dashboard.html).
+### 3. Start Local Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 📋 Features
+## 🧪 Available Scripts
 
-### 👤 User Dashboard
-* **Search Books**: Search books by Name, Author, or Genre instantly.
-* **Borrow Books**: Click **Borrow** on any available book. This moves it to your **Borrowed Books** list and sets a due date.
-* **Return Books**: Click **Return** to place a borrowed book back in the library catalog.
-* **View History**: Look at the history of returned books under the **Returned Books** list.
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Starts Vite local development server with instant HMR |
+| `npm test` | Runs the automated unit and service integration test suite |
+| `npm run build` | Compiles production-ready bundle into `dist/` |
+| `npm run preview` | Locally serves the compiled production build |
+| `npm run verify` | Tests connectivity and table accessibility for live Supabase |
+| `npm run seed` | Seeds the remote PostgreSQL `books` table via Supabase client |
 
-### 👑 Admin Dashboard
-* **Add Books**: Form to insert a new book (requires Name, Author, and comma-separated Genres).
-* **Edit/Delete Books**: Modify existing catalog entries or delete them individually.
-* **Delete All Books**: Clear the entire book catalog from `localStorage` at once to start adding fresh custom books without auto-reloading from CSV.
-* **Load CSV Books**: Manually trigger loading a new random set of books from the CSV file.
-* **Track Transactions**: Read-only tracking tables showing which users have borrowed and returned which books, along with their due and return dates.
+---
+
+## 🐳 Docker Deployment
+
+The project includes an optimized multi-stage [Dockerfile](./Dockerfile) using Alpine Linux and Nginx for production serving:
+
+```bash
+# Build the container image
+docker build -t digital-library .
+
+# Run the container on port 80
+docker run -d -p 80:80 --name digital-library-app digital-library
+```
+Access the application at [http://localhost](http://localhost).
+
+---
+
+## ☁️ Production Deployment
+
+### 1. Supabase Database & Auth Setup
+Follow our comprehensive [Supabase Production Setup Guide](./supabase/production-setup.md):
+1. Execute [`supabase/schema.sql`](./supabase/schema.sql) in your Supabase SQL Editor.
+2. Execute [`supabase/seed.sql`](./supabase/seed.sql) to populate initial library books.
+3. (Optional) Execute [`supabase/storage.sql`](./supabase/storage.sql) for cover image uploads.
+4. In **Authentication > URL Configuration**, add your Vercel domains (`https://<your-app>.vercel.app/**`).
+
+### 2. Vercel Frontend Deployment
+1. Import `Advayaverma/Digital-library` on [vercel.com](https://vercel.com).
+2. Framework Preset: **Vite**.
+3. Under **Environment Variables**, add:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. Deploy! SPA client routing is automatically handled via [`vercel.json`](./vercel.json).
+
+---
+
+## 🔑 Default Credentials (Fallback & Demo Mode)
+
+| Role | Username | Password | Accessible Routes |
+| :--- | :--- | :--- | :--- |
+| **Member / User** | `user123` | `password123` | `/dashboard`, `/about`, `/contact` |
+| **Administrator** | `admin123` | `admin123` | `/admin`, `/dashboard`, `/about`, `/contact` |
+
+---
+
+## 📄 License
+This project is licensed under the MIT License.
