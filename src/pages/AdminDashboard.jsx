@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
+import AlertBanner from '../components/AlertBanner.jsx';
 import * as bookService from '../services/bookService.js';
 import * as borrowService from '../services/borrowService.js';
 import { useAuth } from '../hooks/useAuth.jsx';
@@ -21,6 +22,16 @@ export default function AdminDashboard() {
   const [genre, setGenre] = useState('');
   const [isLoadingBooks, setIsLoadingBooks] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionInProgressId, setActionInProgressId] = useState(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'danger' | 'warning', message: '' }
+
+  const showFeedback = (type, message) => {
+    setFeedback({ type, message });
+    setTimeout(() => {
+      setFeedback(null);
+    }, 5000);
+  };
 
   const loadAllData = async () => {
     setIsLoadingBooks(true);
@@ -36,6 +47,7 @@ export default function AdminDashboard() {
       setReturnedBooks(returned || []);
     } catch (err) {
       console.error('Failed to load admin dashboard data:', err);
+      showFeedback('danger', 'Unable to load catalog and borrowing records.');
     } finally {
       setIsLoadingBooks(false);
     }
@@ -47,7 +59,10 @@ export default function AdminDashboard() {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!bookName.trim() || !author.trim() || !genre.trim()) return;
+    if (!bookName.trim() || !author.trim() || !genre.trim()) {
+      showFeedback('warning', 'Please fill in all book fields.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -61,6 +76,7 @@ export default function AdminDashboard() {
         setBooks((prev) =>
           prev.map((b) => (b.id == bookId ? updated || { ...b, name: bookName, title: bookName, author, genre } : b))
         );
+        showFeedback('success', `"${bookName}" has been successfully updated.`);
       } else {
         // CREATE book via service
         const created = await bookService.addBook({
@@ -69,6 +85,7 @@ export default function AdminDashboard() {
           genre,
         });
         setBooks((prev) => [...prev, created]);
+        showFeedback('success', `"${bookName}" has been added to the catalog.`);
       }
 
       // Reset form
@@ -77,7 +94,7 @@ export default function AdminDashboard() {
       setAuthor('');
       setGenre('');
     } catch (err) {
-      alert(`Error saving book: ${err.message}`);
+      showFeedback('danger', `Error saving book: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,13 +108,17 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRemove = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this book?')) return;
+  const handleRemove = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to remove "${title || 'this book'}"?`)) return;
+    setActionInProgressId(id);
     try {
       await bookService.deleteBook(id);
       setBooks((prev) => prev.filter((b) => b.id != id));
+      showFeedback('success', 'Book removed from library catalog.');
     } catch (err) {
-      alert(`Error removing book: ${err.message}`);
+      showFeedback('danger', `Error removing book: ${err.message}`);
+    } finally {
+      setActionInProgressId(null);
     }
   };
 
@@ -107,11 +128,15 @@ export default function AdminDashboard() {
         'Are you sure you want to delete all books? This will also clear active catalog state.'
       )
     ) {
+      setIsDeletingAll(true);
       try {
         await bookService.deleteAllBooks();
         setBooks([]);
+        showFeedback('success', 'All books have been removed from the catalog.');
       } catch (err) {
-        alert(`Error deleting books: ${err.message}`);
+        showFeedback('danger', `Error deleting books: ${err.message}`);
+      } finally {
+        setIsDeletingAll(false);
       }
     }
   };
@@ -158,6 +183,15 @@ export default function AdminDashboard() {
         </div>
         <hr style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
 
+        {/* Global Feedback Banner */}
+        {feedback && (
+          <AlertBanner
+            type={feedback.type}
+            message={feedback.message}
+            onClose={() => setFeedback(null)}
+          />
+        )}
+
         {/* Add / Edit Book Form */}
         <form id="libraryForm" onSubmit={handleFormSubmit} className="mb-4">
           <input
@@ -196,7 +230,16 @@ export default function AdminDashboard() {
               className="btn btn-success btn-block mb-2"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Saving...' : bookId ? 'Update Book' : 'Add Book'}
+              {isSubmitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                  Saving...
+                </>
+              ) : bookId ? (
+                'Update Book'
+              ) : (
+                'Add Book'
+              )}
             </button>
             {bookId && (
               <button
@@ -227,8 +270,19 @@ export default function AdminDashboard() {
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h3 className="mb-0">Available Books</h3>
           <div>
-            <button className="btn btn-outline-danger btn-sm" onClick={handleDeleteAll}>
-              Delete All Books
+            <button
+              className="btn btn-outline-danger btn-sm"
+              onClick={handleDeleteAll}
+              disabled={isDeletingAll || books.length === 0}
+            >
+              {isDeletingAll ? (
+                <>
+                  <span className="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+                  Deleting...
+                </>
+              ) : (
+                'Delete All Books'
+              )}
             </button>
           </div>
         </div>
@@ -239,7 +293,7 @@ export default function AdminDashboard() {
           items={filteredBooks}
           isLoading={isLoadingBooks}
           loadingMessage="Loading library catalog..."
-          emptyMessage="No books found"
+          emptyMessage="No books found in catalog"
           tableId="adminTableBody"
           renderRow={(book) => (
             <tr key={book.id}>
@@ -247,11 +301,26 @@ export default function AdminDashboard() {
               <td>{book.author}</td>
               <td>{book.genre}</td>
               <td>
-                <button className="btn btn-warning btn-sm mr-2" onClick={() => handleEdit(book)}>
+                <button
+                  className="btn btn-warning btn-sm mr-2"
+                  onClick={() => handleEdit(book)}
+                  disabled={isSubmitting || actionInProgressId === book.id || isDeletingAll}
+                >
                   Edit
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => handleRemove(book.id)}>
-                  Remove
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => handleRemove(book.id, book.name || book.title)}
+                  disabled={isSubmitting || actionInProgressId === book.id || isDeletingAll}
+                >
+                  {actionInProgressId === book.id ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>
+                      Removing...
+                    </>
+                  ) : (
+                    'Remove'
+                  )}
                 </button>
               </td>
             </tr>
