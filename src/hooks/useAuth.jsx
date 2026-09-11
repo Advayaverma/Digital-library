@@ -64,8 +64,8 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const signIn = async (email, password) => {
-    const res = await authService.signIn({ email, password });
+  const signIn = async (identifier, password) => {
+    const res = await authService.signIn({ identifier, password });
     if (res.data?.session) {
       setSession(res.data.session);
       setUser(res.data.user);

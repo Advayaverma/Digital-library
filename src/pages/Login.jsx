@@ -14,18 +14,12 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const resolveEmail = (identifier) => {
-    if (identifier.includes('@')) return identifier;
-    return `${identifier}@digitallibrary.local`;
-  };
-
   const handleUserLogin = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setIsSubmitting(true);
 
-    const email = resolveEmail(userIdentifier);
-    const { data, error } = await signIn(email, userPassword);
+    const { data, error } = await signIn(userIdentifier, userPassword);
 
     setIsSubmitting(false);
 
@@ -43,8 +37,7 @@ export default function Login() {
     setErrorMessage('');
     setIsSubmitting(true);
 
-    const email = resolveEmail(adminIdentifier);
-    const { data, error } = await signIn(email, adminPassword);
+    const { data, error } = await signIn(adminIdentifier, adminPassword);
 
     setIsSubmitting(false);
 

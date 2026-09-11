@@ -108,6 +108,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Security Helper Function: get_email_by_username
+-- Enables login via either username or email
+CREATE OR REPLACE FUNCTION public.get_email_by_username(p_username TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    v_email TEXT;
+BEGIN
+    SELECT email INTO v_email
+    FROM public.profiles
+    WHERE LOWER(username) = LOWER(TRIM(p_username))
+    LIMIT 1;
+    RETURN v_email;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.get_email_by_username(TEXT) TO anon, authenticated;
+
 -- Enable RLS on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.books ENABLE ROW LEVEL SECURITY;

@@ -38,13 +38,64 @@ export async function signUp({ email, password, username }) {
 }
 
 /**
- * Sign in an existing user using Supabase Auth.
+ * Resolves an email address from either a direct email or a username.
  */
-export async function signIn({ email, password }) {
+export async function resolveEmailFromIdentifier(identifier) {
+  if (!identifier) return '';
+  const trimmed = identifier.trim();
+  if (trimmed.includes('@')) return trimmed;
+
+  if (isSupabaseConfigured()) {
+    try {
+      // 1. Try Supabase RPC get_email_by_username
+      const { data, error } = await supabase.rpc('get_email_by_username', {
+        p_username: trimmed,
+      });
+
+      if (!error && data) {
+        return data;
+      }
+
+      // 2. Fallback direct profiles query
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .ilike('username', trimmed)
+        .maybeSingle();
+
+      if (profile?.email) {
+        return profile.email;
+      }
+    } catch (err) {
+      console.warn('Error resolving email from username:', err.message);
+    }
+  }
+
+  // Fallback simulation
+  if (trimmed === 'user123') return 'user123@digitallibrary.local';
+  if (trimmed === 'admin123') return 'admin123@digitallibrary.local';
+
+  return trimmed;
+}
+
+/**
+ * Sign in an existing user using Supabase Auth with either email or username.
+ */
+export async function signIn({ email, identifier, password }) {
+  const targetIdentifier = identifier || email;
+  const resolvedEmail = await resolveEmailFromIdentifier(targetIdentifier);
+
+  if (!resolvedEmail) {
+    return {
+      data: null,
+      error: new Error(`Could not find an account associated with "${targetIdentifier}".`),
+    };
+  }
+
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: resolvedEmail,
         password,
       });
 
@@ -60,8 +111,8 @@ export async function signIn({ email, password }) {
   console.warn('Supabase not configured. Using local simulation for login.');
   const mockUser = {
     id: 'local-demo-user',
-    email,
-    user_metadata: { username: email.split('@')[0] },
+    email: resolvedEmail,
+    user_metadata: { username: targetIdentifier.split('@')[0] },
   };
   localStorage.setItem('currentUser', JSON.stringify(mockUser));
   return { data: { user: mockUser, session: { user: mockUser } }, error: null };
