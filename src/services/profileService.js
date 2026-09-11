@@ -65,7 +65,14 @@ export async function updateProfile(userId, updates) {
 }
 
 /**
- * Check if the given user has the admin role.
+ * Check if the given profile or role object is admin.
+ */
+export function isAdmin(profile) {
+  return profile?.role === 'admin';
+}
+
+/**
+ * Check if the given user ID has the admin role.
  */
 export async function isUserAdmin(userId) {
   const profile = await getProfile(userId);
