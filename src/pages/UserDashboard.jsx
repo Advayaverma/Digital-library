@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
 
-export default function UserDashboard({ onNavigate }) {
+export default function UserDashboard() {
+  const navigate = useNavigate();
   const [books, setBooks] = useState([]);
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [returnedBooks, setReturnedBooks] = useState([]);
@@ -168,9 +170,7 @@ export default function UserDashboard({ onNavigate }) {
   const handleLogout = () => {
     localStorage.removeItem('role');
     localStorage.removeItem('currentUser');
-    if (onNavigate) {
-      onNavigate('login');
-    }
+    navigate('/login');
   };
 
   const availableBooks = books

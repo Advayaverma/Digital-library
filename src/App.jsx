@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
 import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
@@ -9,31 +10,26 @@ import UserDashboard from './pages/UserDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('home');
-
-  const navigate = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const isPublicPage = ['home', 'login', 'signup', 'about', 'contact'].includes(currentPage);
+  const location = useLocation();
+  const isPublicPage = ['/', '/login', '/signup', '/about', '/contact'].includes(location.pathname);
 
   return (
     <div className="app-root">
-      {/* Reusable Navbar for Public Pages */}
-      {isPublicPage && (
-        <Navbar currentPage={currentPage} onNavigate={navigate} />
-      )}
+      {/* Top Navbar rendered on public pages */}
+      {isPublicPage && <Navbar />}
 
-      {/* Main Pages */}
+      {/* Declarative Client-side Routes */}
       <main>
-        {currentPage === 'home' && <Home onNavigate={navigate} />}
-        {currentPage === 'login' && <Login onNavigate={navigate} />}
-        {currentPage === 'signup' && <Signup onNavigate={navigate} />}
-        {currentPage === 'about' && <About onNavigate={navigate} />}
-        {currentPage === 'contact' && <Contact onNavigate={navigate} />}
-        {currentPage === 'userDashboard' && <UserDashboard onNavigate={navigate} />}
-        {currentPage === 'adminDashboard' && <AdminDashboard onNavigate={navigate} />}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
     </div>
   );

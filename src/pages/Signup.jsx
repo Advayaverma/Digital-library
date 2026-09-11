@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
-export default function Signup({ onNavigate }) {
+export default function Signup() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,9 +29,7 @@ export default function Signup({ onNavigate }) {
     localStorage.setItem('users', JSON.stringify(users));
 
     alert('Signup successful! You can now login.');
-    if (onNavigate) {
-      onNavigate('login');
-    }
+    navigate('/login');
   };
 
   return (
@@ -96,15 +96,9 @@ export default function Signup({ onNavigate }) {
         <div className="signup-footer">
           <p>
             Already have an account?{' '}
-            <a
-              href="#login"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onNavigate) onNavigate('login');
-              }}
-            >
+            <Link to="/login">
               Login
-            </a>
+            </Link>
           </p>
         </div>
       </div>

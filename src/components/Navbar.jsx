@@ -1,75 +1,57 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
-export default function Navbar({ currentPage, onNavigate }) {
+export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const pathname = location.pathname;
 
-  const handleLinkClick = (page) => {
-    onNavigate(page);
-    setMobileMenuOpen(false);
-  };
+  const closeMenu = () => setMobileMenuOpen(false);
 
   return (
-    <div id="nav" className={currentPage !== 'home' ? 'fixed-nav' : ''}>
+    <div id="nav" className={pathname !== '/' ? 'fixed-nav' : ''}>
       <div id="nav-part1">
-        <h1
-          onClick={() => handleLinkClick('home')}
-          style={{ cursor: 'pointer', margin: 0 }}
-        >
-          Digital Library
-        </h1>
+        <Link to="/" onClick={closeMenu} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <h1 style={{ margin: 0, cursor: 'pointer' }}>Digital Library</h1>
+        </Link>
       </div>
       <div id="nav-part2">
         <div id="links" className={mobileMenuOpen ? 'show' : ''}>
-          <a
-            href="#home"
-            className={currentPage === 'home' ? 'active' : ''}
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick('home');
-            }}
+          <Link
+            to="/"
+            className={pathname === '/' ? 'active' : ''}
+            onClick={closeMenu}
           >
             Home
-          </a>
-          <a
-            href="#login"
-            className={currentPage === 'login' ? 'active' : ''}
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick('login');
-            }}
+          </Link>
+          <Link
+            to="/login"
+            className={pathname === '/login' ? 'active' : ''}
+            onClick={closeMenu}
           >
             Login
-          </a>
-          <a
-            href="#signup"
-            className={currentPage === 'signup' ? 'active' : ''}
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick('signup');
-            }}
+          </Link>
+          <Link
+            to="/signup"
+            className={pathname === '/signup' ? 'active' : ''}
+            onClick={closeMenu}
           >
             Sign Up
-          </a>
-          <a
-            href="#about"
-            className={currentPage === 'about' ? 'active' : ''}
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick('about');
-            }}
+          </Link>
+          <Link
+            to="/about"
+            className={pathname === '/about' ? 'active' : ''}
+            onClick={closeMenu}
           >
             About
-          </a>
-          <a
-            href="#contact"
-            className={currentPage === 'contact' ? 'active' : ''}
-            onClick={(e) => {
-              e.preventDefault();
-              handleLinkClick('contact');
-            }}
+          </Link>
+          <Link
+            to="/contact"
+            className={pathname === '/contact' ? 'active' : ''}
+            onClick={closeMenu}
           >
             Contact
-          </a>
+          </Link>
         </div>
         <div
           id="icons"

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
-export default function Login({ onNavigate }) {
-  const [activeTab, setActiveTab] = useState('user'); // 'user' | 'admin'
+export default function Login() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('user');
   const [userUsername, setUserUsername] = useState('');
   const [userPassword, setUserPassword] = useState('');
   const [adminUsername, setAdminUsername] = useState('');
@@ -23,9 +25,7 @@ export default function Login({ onNavigate }) {
       localStorage.setItem('role', 'user');
       localStorage.setItem('currentUser', JSON.stringify(user));
       alert('User login successful!');
-      if (onNavigate) {
-        onNavigate('userDashboard');
-      }
+      navigate('/dashboard');
     } else {
       setErrorMessage('Invalid User credentials!');
     }
@@ -46,9 +46,7 @@ export default function Login({ onNavigate }) {
       localStorage.setItem('role', 'admin');
       localStorage.setItem('currentUser', JSON.stringify(admin));
       alert('Admin login successful!');
-      if (onNavigate) {
-        onNavigate('adminDashboard');
-      }
+      navigate('/admin');
     } else {
       setErrorMessage('Invalid Admin credentials!');
     }
@@ -153,16 +151,9 @@ export default function Login({ onNavigate }) {
         <div className="login-footer">
           <p>
             Don't have an account?{' '}
-            <a
-              href="#signup"
-              id="signupLink"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onNavigate) onNavigate('signup');
-              }}
-            >
+            <Link to="/signup" id="signupLink">
               Sign Up
-            </a>
+            </Link>
           </p>
         </div>
       </div>
