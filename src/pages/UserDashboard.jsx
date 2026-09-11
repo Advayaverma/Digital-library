@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
+import * as bookService from '../services/bookService.js';
 
 export default function UserDashboard() {
   const navigate = useNavigate();
@@ -9,25 +10,36 @@ export default function UserDashboard() {
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [returnedBooks, setReturnedBooks] = useState([]);
   const [searchText, setSearchText] = useState('');
-  const [isLoadingCSV, setIsLoadingCSV] = useState(false);
+  const [isLoadingBooks, setIsLoadingBooks] = useState(true);
 
+  // Load books via bookService on mount
   useEffect(() => {
-    const storedBooks = JSON.parse(localStorage.getItem('books')) || [];
+    async function loadCatalog() {
+      setIsLoadingBooks(true);
+      try {
+        const catalog = await bookService.getBooks();
+        if (catalog && catalog.length > 0) {
+          setBooks(catalog);
+        } else {
+          // If neither Supabase nor localStorage has books yet, preload initial set
+          await loadBooksFromCSV();
+        }
+      } catch (err) {
+        console.error('Failed to load books catalog:', err);
+      } finally {
+        setIsLoadingBooks(false);
+      }
+    }
+
     const storedBorrowed = JSON.parse(localStorage.getItem('borrowedBooks')) || [];
     const storedReturned = JSON.parse(localStorage.getItem('returnedBooks')) || [];
-
     setBorrowedBooks(storedBorrowed);
     setReturnedBooks(storedReturned);
 
-    if (storedBooks.length > 0 || localStorage.getItem('csvLoaded') === 'true') {
-      setBooks(storedBooks);
-    } else {
-      loadBooksFromCSV();
-    }
+    loadCatalog();
   }, []);
 
   const loadBooksFromCSV = async () => {
-    setIsLoadingCSV(true);
     try {
       const fileSize = 77800000;
       const chunkSize = 500 * 1024;
@@ -83,6 +95,7 @@ export default function UserDashboard() {
         parsedBooks.push({
           id: isbn || Date.now() + i,
           name: title,
+          title: title,
           author: author,
           genre: genre,
         });
@@ -98,16 +111,14 @@ export default function UserDashboard() {
     } catch (error) {
       console.error('Error preloading books:', error);
       const fallbackBooks = [
-        { id: '0195153448', name: 'Classical Mythology', author: 'Mark P. O. Morford', genre: 'Mythology' },
-        { id: '0002005018', name: 'Clara Callan', author: 'Richard Bruce Wright', genre: 'Fiction' },
-        { id: '0060973129', name: "Decision in Normandy", author: "Carlo D'Este", genre: 'History' },
-        { id: '0374157065', name: 'Flu: Great Influenza Pandemic of 1918', author: 'Gina Bari Kolata', genre: 'Science' },
+        { id: '0195153448', name: 'Classical Mythology', title: 'Classical Mythology', author: 'Mark P. O. Morford', genre: 'Mythology' },
+        { id: '0002005018', name: 'Clara Callan', title: 'Clara Callan', author: 'Richard Bruce Wright', genre: 'Fiction' },
+        { id: '0060973129', name: 'Decision in Normandy', title: 'Decision in Normandy', author: "Carlo D'Este", genre: 'History' },
+        { id: '0374157065', name: 'Flu: Great Influenza Pandemic of 1918', title: 'Flu: Great Influenza Pandemic of 1918', author: 'Gina Bari Kolata', genre: 'Science' },
       ];
       localStorage.setItem('books', JSON.stringify(fallbackBooks));
       localStorage.setItem('csvLoaded', 'true');
       setBooks(fallbackBooks);
-    } finally {
-      setIsLoadingCSV(false);
     }
   };
 
@@ -173,13 +184,14 @@ export default function UserDashboard() {
     navigate('/login');
   };
 
+  // Filter available books: not currently in borrowed list, matching search
   const availableBooks = books
-    .filter((b) => !borrowedBooks.some((borrowed) => borrowed.name === b.name))
+    .filter((b) => !borrowedBooks.some((borrowed) => borrowed.name === (b.name || b.title)))
     .filter((b) => {
       if (!searchText.trim()) return true;
       const lower = searchText.toLowerCase();
       return (
-        b.name?.toLowerCase().includes(lower) ||
+        (b.name || b.title)?.toLowerCase().includes(lower) ||
         b.author?.toLowerCase().includes(lower) ||
         b.genre?.toLowerCase().includes(lower)
       );
@@ -224,13 +236,13 @@ export default function UserDashboard() {
         <BookTable
           headers={['Name', 'Author', 'Genre', 'Action']}
           items={availableBooks}
-          isLoading={isLoadingCSV}
-          loadingMessage="Preloading random books from CSV..."
+          isLoading={isLoadingBooks}
+          loadingMessage="Loading library catalog..."
           emptyMessage="No books available"
           tableId="tableBody"
           renderRow={(book, index) => (
             <tr key={book.id || index}>
-              <td>{book.name}</td>
+              <td>{book.name || book.title}</td>
               <td>{book.author}</td>
               <td>{book.genre}</td>
               <td>
@@ -251,7 +263,7 @@ export default function UserDashboard() {
           tableId="borrowedBody"
           renderRow={(book, index) => (
             <tr key={book.id || index}>
-              <td>{book.name}</td>
+              <td>{book.name || book.title}</td>
               <td>{book.author}</td>
               <td>{book.genre}</td>
               <td>{book.dueDate}</td>
@@ -273,7 +285,7 @@ export default function UserDashboard() {
           tableId="returnedBody"
           renderRow={(book, index) => (
             <tr key={book.id || index}>
-              <td>{book.name}</td>
+              <td>{book.name || book.title}</td>
               <td>{book.author}</td>
               <td>{book.dueDate}</td>
               <td>{book.returnDate}</td>

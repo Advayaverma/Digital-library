@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar.jsx';
 import BookTable from '../components/BookTable.jsx';
+import * as bookService from '../services/bookService.js';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -15,24 +16,35 @@ export default function AdminDashboard() {
   const [bookName, setBookName] = useState('');
   const [author, setAuthor] = useState('');
   const [genre, setGenre] = useState('');
-  const [isLoadingCSV, setIsLoadingCSV] = useState(false);
+  const [isLoadingBooks, setIsLoadingBooks] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const storedBooks = JSON.parse(localStorage.getItem('books')) || [];
+    async function loadCatalog() {
+      setIsLoadingBooks(true);
+      try {
+        const catalog = await bookService.getBooks();
+        if (catalog && catalog.length > 0) {
+          setBooks(catalog);
+        } else {
+          await loadBooksFromCSV();
+        }
+      } catch (err) {
+        console.error('Failed to load books catalog:', err);
+      } finally {
+        setIsLoadingBooks(false);
+      }
+    }
+
     const storedBorrowed = JSON.parse(localStorage.getItem('borrowedBooks')) || [];
     const storedReturned = JSON.parse(localStorage.getItem('returnedBooks')) || [];
-
-    setBooks(storedBooks);
     setBorrowedBooks(storedBorrowed);
     setReturnedBooks(storedReturned);
 
-    if (storedBooks.length === 0 && localStorage.getItem('csvLoaded') !== 'true') {
-      loadBooksFromCSV();
-    }
+    loadCatalog();
   }, []);
 
   const loadBooksFromCSV = async () => {
-    setIsLoadingCSV(true);
     try {
       const fileSize = 77800000;
       const chunkSize = 500 * 1024;
@@ -88,6 +100,7 @@ export default function AdminDashboard() {
         parsedBooks.push({
           id: isbn || Date.now() + i,
           name: title,
+          title: title,
           author: bookAuthor,
           genre: assignedGenre,
         });
@@ -103,71 +116,86 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error preloading books:', error);
       const fallbackBooks = [
-        { id: '0195153448', name: 'Classical Mythology', author: 'Mark P. O. Morford', genre: 'Mythology' },
-        { id: '0002005018', name: 'Clara Callan', author: 'Richard Bruce Wright', genre: 'Fiction' },
-        { id: '0060973129', name: "Decision in Normandy", author: "Carlo D'Este", genre: 'History' },
-        { id: '0374157065', name: 'Flu: Great Influenza Pandemic of 1918', author: 'Gina Bari Kolata', genre: 'Science' },
+        { id: '0195153448', name: 'Classical Mythology', title: 'Classical Mythology', author: 'Mark P. O. Morford', genre: 'Mythology' },
+        { id: '0002005018', name: 'Clara Callan', title: 'Clara Callan', author: 'Richard Bruce Wright', genre: 'Fiction' },
+        { id: '0060973129', name: 'Decision in Normandy', title: 'Decision in Normandy', author: "Carlo D'Este", genre: 'History' },
+        { id: '0374157065', name: 'Flu: Great Influenza Pandemic of 1918', title: 'Flu: Great Influenza Pandemic of 1918', author: 'Gina Bari Kolata', genre: 'Science' },
       ];
       localStorage.setItem('books', JSON.stringify(fallbackBooks));
       localStorage.setItem('csvLoaded', 'true');
       setBooks(fallbackBooks);
-    } finally {
-      setIsLoadingCSV(false);
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!bookName.trim() || !author.trim() || !genre.trim()) return;
 
-    let updatedBooks = [...books];
+    setIsSubmitting(true);
+    try {
+      if (bookId) {
+        // UPDATE book via service
+        const updated = await bookService.updateBook(bookId, {
+          title: bookName,
+          author,
+          genre,
+        });
+        setBooks((prev) =>
+          prev.map((b) => (b.id == bookId ? updated || { ...b, name: bookName, title: bookName, author, genre } : b))
+        );
+      } else {
+        // CREATE book via service
+        const created = await bookService.addBook({
+          title: bookName,
+          author,
+          genre,
+        });
+        setBooks((prev) => [...prev, created]);
+      }
 
-    if (bookId) {
-      updatedBooks = updatedBooks.map((b) =>
-        b.id == bookId ? { ...b, name: bookName, author, genre } : b
-      );
-    } else {
-      const newBook = {
-        id: Date.now(),
-        name: bookName,
-        author: author,
-        genre: genre,
-      };
-      updatedBooks.push(newBook);
+      // Reset form
+      setBookId('');
+      setBookName('');
+      setAuthor('');
+      setGenre('');
+    } catch (err) {
+      alert(`Error saving book: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setBooks(updatedBooks);
-    localStorage.setItem('books', JSON.stringify(updatedBooks));
-
-    setBookId('');
-    setBookName('');
-    setAuthor('');
-    setGenre('');
   };
 
   const handleEdit = (book) => {
     setBookId(book.id);
-    setBookName(book.name);
+    setBookName(book.title || book.name);
     setAuthor(book.author);
     setGenre(book.genre);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRemove = (id) => {
-    const updated = books.filter((b) => b.id != id);
-    setBooks(updated);
-    localStorage.setItem('books', JSON.stringify(updated));
+  const handleRemove = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this book?')) return;
+    try {
+      await bookService.deleteBook(id);
+      setBooks((prev) => prev.filter((b) => b.id != id));
+    } catch (err) {
+      alert(`Error removing book: ${err.message}`);
+    }
   };
 
-  const handleDeleteAll = () => {
+  const handleDeleteAll = async () => {
     if (
       window.confirm(
         'Are you sure you want to delete all books? This will also clear active catalog state.'
       )
     ) {
-      setBooks([]);
-      localStorage.setItem('books', JSON.stringify([]));
-      localStorage.setItem('csvLoaded', 'true');
+      try {
+        await bookService.deleteAllBooks();
+        setBooks([]);
+        localStorage.setItem('csvLoaded', 'true');
+      } catch (err) {
+        alert(`Error deleting books: ${err.message}`);
+      }
     }
   };
 
@@ -179,7 +207,9 @@ export default function AdminDashboard() {
     ) {
       localStorage.removeItem('books');
       localStorage.removeItem('csvLoaded');
+      setIsLoadingBooks(true);
       await loadBooksFromCSV();
+      setIsLoadingBooks(false);
     }
   };
 
@@ -193,7 +223,7 @@ export default function AdminDashboard() {
     if (!searchText.trim()) return true;
     const lower = searchText.toLowerCase();
     return (
-      b.name?.toLowerCase().includes(lower) ||
+      (b.name || b.title)?.toLowerCase().includes(lower) ||
       b.author?.toLowerCase().includes(lower) ||
       b.genre?.toLowerCase().includes(lower)
     );
@@ -236,6 +266,7 @@ export default function AdminDashboard() {
             value={bookName}
             onChange={(e) => setBookName(e.target.value)}
             required
+            disabled={isSubmitting}
           />
           <input
             type="text"
@@ -245,6 +276,7 @@ export default function AdminDashboard() {
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
             required
+            disabled={isSubmitting}
           />
           <input
             type="text"
@@ -254,10 +286,15 @@ export default function AdminDashboard() {
             value={genre}
             onChange={(e) => setGenre(e.target.value)}
             required
+            disabled={isSubmitting}
           />
           <div className="d-flex gap-2">
-            <button type="submit" className="btn btn-success btn-block mb-2">
-              {bookId ? 'Update Book' : 'Add Book'}
+            <button
+              type="submit"
+              className="btn btn-success btn-block mb-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : bookId ? 'Update Book' : 'Add Book'}
             </button>
             {bookId && (
               <button
@@ -269,6 +306,7 @@ export default function AdminDashboard() {
                   setAuthor('');
                   setGenre('');
                 }}
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
@@ -300,13 +338,13 @@ export default function AdminDashboard() {
         <BookTable
           headers={['Name', 'Author', 'Genres', 'Action']}
           items={filteredBooks}
-          isLoading={isLoadingCSV}
-          loadingMessage="Loading random books from CSV..."
+          isLoading={isLoadingBooks}
+          loadingMessage="Loading library catalog..."
           emptyMessage="No books found"
           tableId="adminTableBody"
           renderRow={(book) => (
             <tr key={book.id}>
-              <td>{book.name}</td>
+              <td>{book.name || book.title}</td>
               <td>{book.author}</td>
               <td>{book.genre}</td>
               <td>
@@ -331,7 +369,7 @@ export default function AdminDashboard() {
           renderRow={(book, index) => (
             <tr key={index}>
               <td>{book.user || 'Unknown User'}</td>
-              <td>{book.name}</td>
+              <td>{book.name || book.title}</td>
               <td>{book.author}</td>
               <td>{book.genre}</td>
               <td>{book.dueDate}</td>
@@ -349,7 +387,7 @@ export default function AdminDashboard() {
           renderRow={(book, index) => (
             <tr key={index}>
               <td>{book.user || 'Unknown User'}</td>
-              <td>{book.name}</td>
+              <td>{book.name || book.title}</td>
               <td>{book.author}</td>
               <td>{book.dueDate}</td>
               <td>{book.returnDate}</td>
