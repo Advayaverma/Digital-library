@@ -2,6 +2,14 @@
   "name": "digital-library",
   "private": true,
   "version": "0.1.0",
+  "description": "Full-stack modern digital library platform powered by React, Vite, and Supabase",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Advayaverma/Digital-library.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
